@@ -2,6 +2,8 @@
 
 The platform separates user experience, gateways, runtime, AI/data services, and shared security/operations.
 
+The accepted direction, rationale, tradeoffs, and unresolved choices are recorded in [ADR 0001](../decisions/0001-enterprise-ai-platform-architecture.md). Delivery milestones are in the [POC roadmap](../roadmap.md).
+
 ```mermaid
 flowchart TD
     C[Copilot Studio / API clients] --> G[APIM]

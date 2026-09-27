@@ -2,6 +2,8 @@
 
 All milestones are initially pending. Keep resources short-lived and validate each layer before expanding scope.
 
+This plan implements [ADR 0001: Enterprise AI platform architecture](decisions/0001-enterprise-ai-platform-architecture.md). Security requirements apply throughout; milestone 7 validates the integrated controls rather than introducing security for the first time.
+
 | Milestone | Scope | Exit criteria |
 | --- | --- | --- |
 | 1. Account foundation | Entra tenant, Azure subscription, Power Platform environment, Copilot Studio entitlement, budget alerts | Tenant IDs and permissions verified; basic Copilot agent works; licensing constraints recorded |
