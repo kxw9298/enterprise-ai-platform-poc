@@ -1,0 +1,74 @@
+name: Azure OIDC check
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: azure-oidc-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      id-token: write
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_STATE_STORAGE_ACCOUNT: ${{ vars.TF_STATE_STORAGE_ACCOUNT }}
+      TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
+      TF_STATE_KEY: ${{ vars.TF_STATE_KEY }}
+      AZURE_CORE_OUTPUT: none
+      AZURE_CORE_ONLY_SHOW_ERRORS: 'true'
+    steps:
+      # No checkout is needed. No repository credentials are persisted on the runner.
+      - name: Check repository variables
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID TF_STATE_STORAGE_ACCOUNT TF_STATE_CONTAINER TF_STATE_KEY; do
+            [[ -n "${!name}" ]] || { echo "::error::Missing repository variable: $name"; exit 1; }
+          done
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
+            [[ "${!name}" =~ ^[a-fA-F0-9]{8}(-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12}$ ]] || { echo "::error::Invalid identifier: $name"; exit 1; }
+          done
+
+      - name: Sign in to Azure using GitHub OIDC
+        # azure/login v3.1.0; pin the release commit, not a movable major tag.
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          audience: api://AzureADTokenExchange
+
+      - name: Verify identity and read-only Azure access
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Do not print tokens, credentials, blob contents, or Terraform state.
+          account=$(az account show --output json)
+          jq -e --arg sub "$AZURE_SUBSCRIPTION_ID" --arg tenant "$AZURE_TENANT_ID" --arg client "$AZURE_CLIENT_ID" '
+            (.id | ascii_downcase) == ($sub | ascii_downcase) and
+            (.tenantId | ascii_downcase) == ($tenant | ascii_downcase) and
+            (.user.name | ascii_downcase) == ($client | ascii_downcase) and
+            .user.type == "servicePrincipal" and .state == "Enabled"
+          ' <<< "$account" >/dev/null
+          az group list --subscription "$AZURE_SUBSCRIPTION_ID" --output none
+          blob_count=$(az storage blob list --account-name "$TF_STATE_STORAGE_ACCOUNT" \
+            --container-name "$TF_STATE_CONTAINER" --auth-mode login --query 'length(@)' --output tsv)
+          [[ "$blob_count" =~ ^[0-9]+$ ]]
+          {
+            echo '## Azure authentication verified'
+            echo '- GitHub OIDC signed in as the expected service principal.'
+            echo '- Tenant and subscription match the repository configuration.'
+            echo '- Resource-group listing and state-container listing succeeded.'
+            echo '- No cloud resources, blobs, or Terraform state were changed.'
+            echo '- Terraform deployment and state write/locking are separate checks.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      # azure/login post-job cleanup clears the runner login context automatically.
