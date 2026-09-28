@@ -1,0 +1,130 @@
+name: Terraform POC
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Terraform operation (review plan before apply; destroy-plan before destroy)
+        type: choice
+        required: true
+        default: plan
+        options: [plan, apply, destroy-plan, destroy]
+      reviewed_commit:
+        description: Full commit SHA from the reviewed plan (required for apply/destroy)
+        type: string
+        required: false
+      confirm_destroy:
+        description: For destroy only, type rg-ai-platform-poc
+        type: string
+        required: false
+
+permissions: {}
+concurrency:
+  group: terraform-poc-state
+  cancel-in-progress: false
+
+jobs:
+  terraform:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        shell: bash
+        working-directory: infra/poc
+    env:
+      TF_IN_AUTOMATION: 'true'
+      TF_INPUT: 'false'
+      ARM_USE_OIDC: 'true'
+      ARM_USE_AZUREAD: 'true'
+      ARM_USE_CLI: 'false'
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_STATE_STORAGE_ACCOUNT: ${{ vars.TF_STATE_STORAGE_ACCOUNT }}
+      TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
+      TF_STATE_KEY: ${{ vars.TF_STATE_KEY }}
+      OPERATION: ${{ inputs.operation }}
+      REVIEWED_COMMIT: ${{ inputs.reviewed_commit }}
+      CONFIRM_DESTROY: ${{ inputs.confirm_destroy }}
+      AZURE_CORE_OUTPUT: none
+      AZURE_CORE_ONLY_SHOW_ERRORS: 'true'
+    steps:
+      - name: Check out this exact commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Check operation and configuration
+        run: |
+          set -euo pipefail
+          case "$OPERATION" in
+            plan|destroy-plan) ;;
+            apply|destroy)
+              [[ "$REVIEWED_COMMIT" == "$GITHUB_SHA" ]] || { echo '::error::Provide this exact commit SHA after reviewing its plan.'; exit 1; }
+              ;;
+            *) exit 1 ;;
+          esac
+          if [[ "$OPERATION" == destroy ]]; then
+            [[ "$CONFIRM_DESTROY" == rg-ai-platform-poc ]] || { echo '::error::Explicit resource-group confirmation is required.'; exit 1; }
+          fi
+          for name in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID TF_STATE_STORAGE_ACCOUNT TF_STATE_CONTAINER TF_STATE_KEY; do
+            [[ -n "${!name}" ]] || { echo "::error::Missing configuration: $name"; exit 1; }
+          done
+          for name in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID; do
+            [[ "${!name}" =~ ^[a-fA-F0-9]{8}(-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12}$ ]] || exit 1
+          done
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.16.4
+          terraform_wrapper: false
+
+      - name: Sign in to Azure using OIDC
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Initialize and validate
+        run: |
+          set -euo pipefail
+          terraform fmt -check
+          terraform init -input=false -lockfile=readonly \
+            -backend-config="storage_account_name=$TF_STATE_STORAGE_ACCOUNT" \
+            -backend-config="container_name=$TF_STATE_CONTAINER" \
+            -backend-config="key=$TF_STATE_KEY"
+          terraform validate
+
+      - name: Plan and check foundation scope
+        id: plan
+        run: |
+          set -euo pipefail
+          flags=()
+          case "$OPERATION" in destroy-plan|destroy) flags+=(-destroy);; esac
+          terraform plan -input=false -lock-timeout=5m -no-color "${flags[@]}" -out="$RUNNER_TEMP/poc.tfplan"
+          terraform show -json "$RUNNER_TEMP/poc.tfplan" > "$RUNNER_TEMP/poc.tfplan.json"
+          bash ../../scripts/ci/check-foundation-plan.sh "$RUNNER_TEMP/poc.tfplan.json" "$OPERATION"
+          {
+            echo '## Terraform foundation plan'
+            printf 'Commit reviewed for apply/destroy: `%s`\n\n' "$GITHUB_SHA"
+            printf 'Operation: `%s`\n\n' "$OPERATION"
+            jq -r '(.resource_changes // [])[] | "- `\(.address)`: \(.change.actions | join(", "))"' "$RUNNER_TEMP/poc.tfplan.json"
+            echo
+            echo 'Saved plan stays on this runner. No plan/state artifacts are uploaded.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Apply the saved plan
+        if: inputs.operation == 'apply' || inputs.operation == 'destroy'
+        run: terraform apply -input=false -lock-timeout=5m -no-color "$RUNNER_TEMP/poc.tfplan"
+
+      - name: Remove temporary plan files
+        if: always()
+        run: rm -f -- "$RUNNER_TEMP/poc.tfplan" "$RUNNER_TEMP/poc.tfplan.json"
