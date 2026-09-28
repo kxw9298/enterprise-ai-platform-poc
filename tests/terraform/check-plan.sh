@@ -23,3 +23,14 @@ if bash "$ROOT/scripts/ci/check-foundation-plan.sh" "$TEMP_DIR/plan.json" apply 
 jq '.resource_changes=[]' <<< "$base" > "$TEMP_DIR/plan.json"
 bash "$ROOT/scripts/ci/check-foundation-plan.sh" "$TEMP_DIR/plan.json" plan
 printf 'Foundation scope checks passed (create/no-op/destroy allowed; replacement and other resources blocked).\n'
+# Platform lifecycle: down permits platform deletes but never group deletion.
+jq '.resource_changes[0].address="module.platform[0].azurerm_virtual_network.poc" | .resource_changes[0].type="azurerm_virtual_network" | .resource_changes[0].change.after={name:"vnet-poc",resource_group_name:"rg-ai-platform-poc",location:"eastus"}' <<< "$base" > "$TEMP_DIR/up.json"
+bash "$ROOT/scripts/ci/check-foundation-plan.sh" "$TEMP_DIR/up.json" plan
+jq '.resource_changes[0].change |= (.before=.after | .after=null | .actions=["delete"])' "$TEMP_DIR/up.json" > "$TEMP_DIR/down.json"
+bash "$ROOT/scripts/ci/check-foundation-plan.sh" "$TEMP_DIR/down.json" down-plan
+if bash "$ROOT/scripts/ci/check-foundation-plan.sh" "$TEMP_DIR/down.json" apply 2>/dev/null; then exit 1; fi
+jq '.resource_changes[0].change.after.resource_group_name="rg-ai-platform-bootstrap"' "$TEMP_DIR/up.json" > "$TEMP_DIR/bad.json"
+if bash "$ROOT/scripts/ci/check-foundation-plan.sh" "$TEMP_DIR/bad.json" plan 2>/dev/null; then exit 1; fi
+jq '.resource_changes[0].change |= (.before=.after | .after=null | .actions=["delete"])' <<< "$base" > "$TEMP_DIR/group-delete.json"
+if bash "$ROOT/scripts/ci/check-foundation-plan.sh" "$TEMP_DIR/group-delete.json" down-plan 2>/dev/null; then exit 1; fi
+printf 'Platform checks passed: scoped create, down/delete boundaries and bootstrap protection.\n'

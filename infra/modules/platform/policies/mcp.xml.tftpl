@@ -1,0 +1,21 @@
+<policies>
+  <inbound>
+    <base />
+%{ if length(client_ids) == 0 ~}
+    <return-response><set-status code="403" reason="Configure trusted Copilot client identity before use" /></return-response>
+%{ else ~}
+    <validate-azure-ad-token tenant-id="${tenant_id}" header-name="Authorization" failed-validation-httpcode="401" output-token-variable-name="caller">
+      <client-application-ids>
+%{ for client_id in client_ids ~}
+        <application-id>${client_id}</application-id>
+%{ endfor ~}
+      </client-application-ids>
+      <audiences><audience>${audience}</audience></audiences>
+    </validate-azure-ad-token>
+    <set-header name="x-client-id" exists-action="override"><value>@(((Jwt)context.Variables["caller"]).Claims.GetValueOrDefault("azp", ((Jwt)context.Variables["caller"]).Claims.GetValueOrDefault("appid", "unknown")))</value></set-header>
+%{ endif ~}
+  </inbound>
+  <backend><forward-request buffer-response="false" /></backend>
+  <outbound><base /></outbound>
+  <on-error><base /></on-error>
+</policies>

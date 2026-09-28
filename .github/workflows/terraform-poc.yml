@@ -8,13 +8,13 @@ on:
         type: choice
         required: true
         default: plan
-        options: [plan, apply, destroy-plan, destroy]
+        options: [plan, apply, down-plan, down, destroy-plan, destroy]
       reviewed_commit:
-        description: Full commit SHA from the reviewed plan (required for apply/destroy)
+        description: Full commit SHA from the reviewed plan (required for apply/down/destroy)
         type: string
         required: false
       confirm_destroy:
-        description: For destroy only, type rg-ai-platform-poc
+        description: For down/destroy, type rg-ai-platform-poc
         type: string
         required: false
 
@@ -27,7 +27,7 @@ jobs:
   terraform:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 180
     permissions:
       contents: read
       id-token: write
@@ -44,6 +44,8 @@ jobs:
       ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
       ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_publisher_email: ${{ vars.APIM_PUBLISHER_EMAIL }}
+      TF_VAR_aks_admin_object_id: ${{ vars.AKS_ADMIN_OBJECT_ID }}
       TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       TF_STATE_STORAGE_ACCOUNT: ${{ vars.TF_STATE_STORAGE_ACCOUNT }}
       TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
@@ -64,16 +66,16 @@ jobs:
         run: |
           set -euo pipefail
           case "$OPERATION" in
-            plan|destroy-plan) ;;
-            apply|destroy)
+            plan|down-plan|destroy-plan) ;;
+            apply|down|destroy)
               [[ "$REVIEWED_COMMIT" == "$GITHUB_SHA" ]] || { echo '::error::Provide this exact commit SHA after reviewing its plan.'; exit 1; }
               ;;
             *) exit 1 ;;
           esac
-          if [[ "$OPERATION" == destroy ]]; then
+          if [[ "$OPERATION" == destroy || "$OPERATION" == down ]]; then
             [[ "$CONFIRM_DESTROY" == rg-ai-platform-poc ]] || { echo '::error::Explicit resource-group confirmation is required.'; exit 1; }
           fi
-          for name in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID TF_STATE_STORAGE_ACCOUNT TF_STATE_CONTAINER TF_STATE_KEY; do
+          for name in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID TF_STATE_STORAGE_ACCOUNT TF_STATE_CONTAINER TF_STATE_KEY TF_VAR_publisher_email TF_VAR_aks_admin_object_id; do
             [[ -n "${!name}" ]] || { echo "::error::Missing configuration: $name"; exit 1; }
           done
           for name in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID; do
@@ -96,24 +98,28 @@ jobs:
       - name: Initialize and validate
         run: |
           set -euo pipefail
-          terraform fmt -check
+          terraform fmt -check -recursive ../
           terraform init -input=false -lockfile=readonly \
             -backend-config="storage_account_name=$TF_STATE_STORAGE_ACCOUNT" \
             -backend-config="container_name=$TF_STATE_CONTAINER" \
             -backend-config="key=$TF_STATE_KEY"
           terraform validate
 
-      - name: Plan and check foundation scope
+      - name: Check apply prerequisites
+        if: inputs.operation == 'apply' || inputs.operation == 'down' || inputs.operation == 'destroy'
+        run: bash ../../scripts/infra/preflight.sh
+
+      - name: Plan and check POC scope
         id: plan
         run: |
           set -euo pipefail
           flags=()
-          case "$OPERATION" in destroy-plan|destroy) flags+=(-destroy);; esac
+          case "$OPERATION" in destroy-plan|destroy) flags+=(-destroy);; down-plan|down) flags+=(-var=enable_platform=false);; esac
           terraform plan -input=false -lock-timeout=5m -no-color "${flags[@]}" -out="$RUNNER_TEMP/poc.tfplan"
           terraform show -json "$RUNNER_TEMP/poc.tfplan" > "$RUNNER_TEMP/poc.tfplan.json"
           bash ../../scripts/ci/check-foundation-plan.sh "$RUNNER_TEMP/poc.tfplan.json" "$OPERATION"
           {
-            echo '## Terraform foundation plan'
+            echo '## Terraform platform plan'
             printf 'Commit reviewed for apply/destroy: `%s`\n\n' "$GITHUB_SHA"
             printf 'Operation: `%s`\n\n' "$OPERATION"
             jq -r '(.resource_changes // [])[] | "- `\(.address)`: \(.change.actions | join(", "))"' "$RUNNER_TEMP/poc.tfplan.json"
@@ -122,7 +128,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Apply the saved plan
-        if: inputs.operation == 'apply' || inputs.operation == 'destroy'
+        if: inputs.operation == 'apply' || inputs.operation == 'down' || inputs.operation == 'destroy'
         run: terraform apply -input=false -lock-timeout=5m -no-color "$RUNNER_TEMP/poc.tfplan"
 
       - name: Remove temporary plan files

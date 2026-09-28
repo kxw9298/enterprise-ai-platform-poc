@@ -1,0 +1,21 @@
+# Application-stage example only; not applied by this Terraform root.
+# Deploy matching authenticated MCP pods first. Never remove the internal flag.
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp
+  namespace: poc
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+    service.beta.kubernetes.io/azure-load-balancer-internal-subnet: snet-aks
+    service.beta.kubernetes.io/azure-load-balancer-ipv4: 10.42.0.10
+spec:
+  type: LoadBalancer
+  loadBalancerSourceRanges:
+    - 10.42.4.0/27
+  selector:
+    app: mcp
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

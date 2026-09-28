@@ -1,0 +1,24 @@
+// Application Insights Logs schema. Set dated prices for your deployed model.
+// Defaults intentionally null: absent prices produce null cost, never false $0.
+let InputUSDPerMillion = real(null);
+let CachedInputUSDPerMillion = real(null);
+let OutputUSDPerMillion = real(null);
+traces
+| where timestamp > ago(24h) and message == "Model usage"
+| extend ClientId=tostring(customDimensions.client_id), RequestId=tostring(customDimensions.request_id),
+         Deployment=tostring(customDimensions.deployment), Model=tostring(customDimensions.model),
+         ModelVersion=tostring(customDimensions.model_version), Usage=parse_json(tostring(customDimensions.usage))
+| where isnotempty(RequestId)
+// Deduplicate repeated telemetry, not actual separate model requests.
+| summarize arg_max(timestamp, *) by RequestId
+| extend InputTokens=tolong(Usage.prompt_tokens), OutputTokens=tolong(Usage.completion_tokens),
+         CachedTokens=coalesce(tolong(Usage.prompt_tokens_details.cached_tokens), 0)
+| extend MissingUsage=isnull(InputTokens) or isnull(OutputTokens)
+| summarize Requests=count(), MissingUsageRequests=countif(MissingUsage),
+            InputTokens=sum(InputTokens), CachedInputTokens=sum(CachedTokens), OutputTokens=sum(OutputTokens)
+            by ClientId, Deployment, Model, ModelVersion
+| extend EstimatedModelUSD=iff(MissingUsageRequests > 0, real(null),
+    ((InputTokens-CachedInputTokens)*InputUSDPerMillion + CachedInputTokens*CachedInputUSDPerMillion + OutputTokens*OutputUSDPerMillion)/1000000.0)
+// Includes successful non-streaming calls only. Inspect failed gateway requests
+// separately; incomplete telemetry cannot establish a complete invoice.
+// Excludes Copilot credits/licenses, AKS, APIM and other shared infrastructure.

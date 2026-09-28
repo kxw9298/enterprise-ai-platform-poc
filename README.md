@@ -52,3 +52,5 @@ The initial milestone is establishing one Entra tenant, an Azure subscription, a
 - Keep infrastructure state and environment-specific secrets outside Git.
 
 See [contribution guidance](CONTRIBUTING.md).
+
+The [disposable platform runbook](docs/runbooks/platform-lifecycle.md) covers the planned AKS/APIM/Foundry stack, per-client token telemetry, and spin-up/down lifecycle. Infrastructure code is prepared; see the runbook for plan evidence and outstanding apply prerequisites.

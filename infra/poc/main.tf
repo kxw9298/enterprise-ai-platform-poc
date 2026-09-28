@@ -4,6 +4,14 @@ provider "azurerm" {
   storage_use_azuread             = true
 
   features {
+    # Disposable POC services: remove soft-deleted reservations on teardown.
+    # Requires an administrator or explicitly delegated purge permissions.
+    api_management {
+      purge_soft_delete_on_destroy = true
+      recover_soft_deleted         = false
+    }
+    cognitive_account { purge_soft_delete_on_destroy = true }
+    log_analytics_workspace { permanently_delete_on_destroy = true }
     resource_group {
       prevent_deletion_if_contains_resources = true
     }
@@ -19,4 +27,21 @@ resource "azurerm_resource_group" "poc" {
     environment  = "poc"
     "managed-by" = "terraform"
   }
+}
+
+data "azurerm_client_config" "current" {}
+
+module "platform" {
+  count               = var.enable_platform ? 1 : 0
+  source              = "../modules/platform"
+  resource_group_name = azurerm_resource_group.poc.name
+  location            = azurerm_resource_group.poc.location
+  tags                = azurerm_resource_group.poc.tags
+  suffix              = substr(sha256(var.subscription_id), 0, 8)
+  tenant_id           = data.azurerm_client_config.current.tenant_id
+  publisher_email     = var.publisher_email
+  aks_admin_object_id = var.aks_admin_object_id
+  api_audience        = var.api_audience
+  allowed_client_ids  = var.allowed_client_ids
+  aks_node_size       = var.aks_node_size
 }

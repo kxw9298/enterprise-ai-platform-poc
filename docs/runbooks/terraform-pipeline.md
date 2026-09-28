@@ -1,18 +1,18 @@
 # Terraform POC pipeline
 
-The [Terraform POC workflow](../../.github/workflows/terraform-poc.yml) manages the [foundation root](../../infra/poc/README.md). Initially, the only managed resource is `rg-ai-platform-poc` in `eastus`, tagged for this project and Terraform ownership. It does not deploy AKS, gateways, models, databases, or networking yet.
+The [Terraform POC workflow](../../.github/workflows/terraform-poc.yml) manages the [foundation root](../../infra/poc/README.md). The root now includes the optional AKS/APIM/Foundry platform. See [platform lifecycle](platform-lifecycle.md) for the current resource inventory, prerequisites, and down/recreate procedure. The historical resource-group-only deployment evidence below predates this expansion.
 
 ## Prerequisites
 
 - [Bootstrap completed](bootstrap.md), including the backend and pipeline identity.
-- Six repository variables configured and the [GitHub OIDC check](github-actions.md) passing.
+- The six bootstrap variables plus `APIM_PUBLISHER_EMAIL` and `AKS_ADMIN_OBJECT_ID` configured; [GitHub OIDC check](github-actions.md) passing.
 - Access to manually run Actions on `main`.
 
 ## Plan, review, and apply
 
 1. Open **Actions → Terraform POC → Run workflow** on GitHub.
 2. Choose branch **main**, operation **plan**, and leave other inputs blank.
-3. Review the log and job summary. The first plan should add one resource group. Copy the full commit SHA shown in the summary.
+3. Review the log and job summary. Review every planned platform resource. Copy the full commit SHA shown in the summary.
 4. Run the workflow again with operation **apply**, providing that SHA as `reviewed_commit`.
 5. Verify the apply succeeds and the group appears in Azure.
 
@@ -27,7 +27,7 @@ gh workflow run terraform-poc.yml --ref main \
   -f operation=apply -f reviewed_commit=REVIEWED_FULL_COMMIT_SHA
 ```
 
-Apply requires the reviewed commit to equal the run's commit. It generates a fresh plan on that same code, checks its scope, and applies the saved plan in the same job. It does not reuse a plan artifact from the earlier run. Azure drift can change the fresh plan; review the apply log as well. The first-milestone guard permits only this resource group and rejects replacements/deletes during normal apply. Extending the platform requires a deliberate update to that guard together with the new Terraform resources.
+Apply requires the reviewed commit to equal the run's commit. It generates a fresh plan on that same code, checks its scope, and applies the saved plan in the same job. It does not reuse a plan artifact from the earlier run. Azure drift can change the fresh plan; review the apply log as well. The guard permits only the exact resource addresses in `scripts/ci/platform-resources.json` and rejects replacements/deletes during normal apply. `down-plan`/`down` permit platform deletion while preserving the group; full destroy may remove the group too. Extending the platform requires a deliberate guard update.
 
 The `reviewed_commit` input is an explicit operator acknowledgment, not an enforced independent reviewer approval. No paid GitHub Environment approval feature is required, and no Environment is attached because that would change the OIDC subject.
 
@@ -51,10 +51,12 @@ Rerun **plan** after the initial apply; it should report no infrastructure chang
 - GitHub workflow permissions are `contents: read` and `id-token: write`. Actions are pinned to specific release commits; checkout does not persist its Git credential.
 - The provider checksum lock file is committed for Linux runners and the developer's ARM Mac.
 - All operations share one GitHub concurrency group and use backend locking with a five-minute lock timeout. Do not run local apply/destroy concurrently with Actions.
-- Binary and JSON plan files exist only in the runner's temporary directory, are removed at job end, and are never uploaded as artifacts. The current plan log contains only non-secret resource group metadata. Future resources must mark sensitive values appropriately and must not print credentials.
+- Binary and JSON plan files exist only in the runner's temporary directory, are removed at job end, and are never uploaded as artifacts. The plan log includes infrastructure settings; sensitive provider values remain redacted by Terraform. Future resources must mark sensitive values appropriately and must not print credentials.
 - `.local/`, `.terraform/`, state, environment files, keys, and Terraform plan files are ignored. Repository variables contain identifiers, not credentials.
 
 ## Local validation and optional local operation
+
+For the expanded root, use [scripts/infra/plan.sh](../../scripts/infra/plan.sh) and set the required publisher/admin variables described in the lifecycle runbook. The local commands below are supplementary.
 
 Use Terraform 1.16.4. The project-local validated binary is in `.local/tools/terraform/1.16.4/terraform` on the current Mac; other machines should install the pinned version from HashiCorp. The older system Terraform is not used by this workflow.
 
@@ -79,6 +81,10 @@ terraform -chdir=infra/poc plan
 ```
 
 The pipeline uses `ARM_USE_CLI=false` and OIDC instead. Never copy GitHub tokens into local files.
+
+## Routine shutdown
+
+Use **down-plan**, review it, then **down** with the reviewed SHA and `rg-ai-platform-poc` confirmation. This removes paid platform resources and retains the group/bootstrap for recreation. Run **plan** then **apply** to recreate. The expanded platform requires workload RBAC and purge permissions; current pipeline Contributor alone is insufficient, and preflight blocks an unready apply.
 
 ## Eventual teardown
 
