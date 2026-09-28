@@ -1,5 +1,7 @@
 # ADR 0003: Adapt the AI Landing Zone for an AKS runtime
 
+**Scope priority:** [POC goal and success criteria](../architecture/poc-success-criteria.md) govern implementation: Copilot Studio → APIM → internal MCP on AKS, with APIM model calls and per-client token/cost attribution. Copilot connectivity is core; only its additional VNet deployment is deferred from the initial network change. RAG and GPU inference remain later extensions.
+
 - **Date:** 2026-09-28
 - **Status:** Revised per user direction: one AKS VNet now; Copilot networking and RAG deferred; endpoint details remain proposed
 - **Scope:** Design and delivery plan only; no additional infrastructure deployed
@@ -51,7 +53,7 @@ Later additions, not initial dependencies:
 
 ## Simplifications from the previous revision
 
-Remove the upfront private landing-zone rollout: no hub/spoke platform, firewall, VPN/ExpressRoute, Bastion, DNS Private Resolver, private build-agent subnet or dedicated private runner in the initial network plan. Do not pre-create Copilot subnets, private endpoints or DNS zones for future services. RAG and Power Platform licensing/connectivity checks move to their respective later phases.
+Remove the upfront private landing-zone rollout: no hub/spoke platform, firewall, VPN/ExpressRoute, Bastion, DNS Private Resolver, private build-agent subnet or dedicated private runner in the initial network plan. Do not pre-create Copilot subnets, private endpoints or DNS zones for future services. RAG moves to a later phase. Copilot connectivity/licensing feasibility is checked early because the end-to-end connection is the primary POC goal; its network resources are deployed after the initial AKS network change.
 
 An AKS VNet does not itself make the Kubernetes API, application ingress, APIM or Foundry private. Decide those endpoint settings explicitly during implementation. A simple authenticated HTTPS path is a candidate for the POC; this design revision does not authorize exposing an existing private service or silently disabling security controls. Add private connectivity only where an agreed access requirement needs it.
 
@@ -93,10 +95,10 @@ An AKS VNet does not itself make the Kubernetes API, application ingress, APIM o
 | 2. Managed model and gateway | One Foundry resource/project, chat model, filters and APIM model API | Authenticated model call; unauthorized call denied; usage and filter tests recorded |
 | 3. AKS runtime | CPU cluster, registry, one agent, one sample MCP tool and workload identities | Client reaches agent; agent calls model through APIM and invokes the authorized tool; deployment workflow works |
 | Later: RAG | Search, documents, embeddings and ingestion | Grounded citations and document access tests |
-| Later: Copilot | Separate connection VNet and supported Power Platform integration | Required networking/licensing validated at that phase; authenticated end-to-end agent call |
+| Core follow-on: Copilot | Separate connection VNet and supported Power Platform integration | Required networking/licensing validated at that phase; authenticated end-to-end agent call |
 | Later: self-hosted LLM | GPU user node pool, vLLM, moderation and model gateway route | Quota, model compatibility, safety, cost and cleanup verified |
 
-The later extensions are independent planning items; RAG is not a prerequisite for Copilot connectivity or self-hosted inference. No Power Platform setup or RAG infrastructure blocks phases 0–3.
+The later extensions are independent planning items; RAG is not a prerequisite for Copilot connectivity or self-hosted inference. RAG does not block phases 0–3. Check Power Platform feasibility early; completing its configuration and end-to-end connectivity is required before declaring the core POC complete.
 
 ## Terraform and lifecycle plan
 
