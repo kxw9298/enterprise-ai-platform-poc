@@ -2,6 +2,8 @@
 
 The [Azure OIDC check workflow](../../.github/workflows/azure-oidc-check.yml) verifies the bootstrap identity from a real GitHub-hosted runner. It does not deploy resources or modify Terraform state.
 
+**Verified 2026-09-28:** [run 36426019554, attempt 2](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36426019554/attempts/2) passed variable checks, OIDC login, expected identity/subscription checks, resource-group listing, and state-container listing. The initial attempt exposed a legacy-versus-immutable subject mismatch; Entra and bootstrap configuration now match GitHub's authoritative immutable subject prefix.
+
 ## Repository configuration
 
 In GitHub, open **Settings → Secrets and variables → Actions → Variables**. The following repository variables are identifiers/configuration, not passwords:
@@ -23,7 +25,7 @@ To populate the variables using your existing GitHub CLI login, from the reposit
 for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID TF_STATE_STORAGE_ACCOUNT TF_STATE_CONTAINER TF_STATE_KEY; do
   jq -er --arg name "$name" '.[$name]' .local/bootstrap/github-variables.json |
     gh variable set "$name" --repo kxw9298/enterprise-ai-platform-poc
- done
+done
 ```
 
 The variable names are an explicit allowlist: do not replace this with uploading all environment variables or credential files. Do not save tokens in workflow YAML or print them in logs.
@@ -44,8 +46,10 @@ The workflow is manual-only and its job runs only on `main`. It requests `id-tok
 The Azure federated credential trusts this exact subject:
 
 ```text
-repo:kxw9298/enterprise-ai-platform-poc:ref:refs/heads/main
+repo:kxw9298@17515296/enterprise-ai-platform-poc@1391446926:ref:refs/heads/main
 ```
+
+This repository uses GitHub's immutable subject format, which includes owner/repository IDs. Verify the prefix with `gh api repos/kxw9298/enterprise-ai-platform-poc/actions/oidc/customization/sub`; a legacy name-only subject will fail authentication. The IDs are non-secret configuration in bootstrap's `config.json`.
 
 Do not add a GitHub `environment:` to this job without changing and reviewing the Entra trust rule: it changes the OIDC subject. Do not broaden trust to pull requests. Anyone who can change/run trusted code on `main` can exercise the pipeline's assigned Azure permissions, so keep repository access limited to intended maintainers.
 

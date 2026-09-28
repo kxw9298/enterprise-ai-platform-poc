@@ -1,7 +1,7 @@
 # ADR 0002: IaC bootstrap and lifecycle
 
 - **Date:** 2026-09-27
-- **Status:** Accepted; bootstrap provisioning verified, pipeline OIDC login and live cleanup validation pending
+- **Status:** Accepted; bootstrap provisioning and pipeline OIDC/read access verified; Terraform deployment and live cleanup validation pending
 
 ## Context
 
@@ -34,6 +34,8 @@ Keep the recovery manifest until cleanup. The cleanup script cannot discover all
 
 ## Verification evidence
 
-Local shell tests use a fake Azure CLI and isolated temporary files to exercise preview behavior, account checks, setup and retries, scoped workload access, ownership checks, cleanup guards, and state checks. Bootstrap provisioning completed on 2026-09-28. Azure checks verified storage protection settings, operator container access, secretless application, branch-specific OIDC federation, and pipeline role assignments. Live execution also led to corrections for Storage provider registration, application creation through Graph, and Azure-generated custom-role IDs. No live deletion, Terraform deployment, or GitHub OIDC login has been performed yet.
+Local shell tests use a fake Azure CLI and isolated temporary files to exercise preview behavior, account checks, setup and retries, scoped workload access, ownership checks, cleanup guards, and state checks. Bootstrap provisioning completed on 2026-09-28. Azure checks verified storage protection settings, operator container access, secretless application, branch-specific OIDC federation, and pipeline role assignments. Live execution also led to corrections for Storage provider registration, application creation through Graph, and Azure-generated custom-role IDs.
+
+On 2026-09-28, [GitHub Actions run 36426019554, attempt 2](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36426019554/attempts/2) verified OIDC login and read access. This repository uses immutable GitHub subject claims containing owner/repository IDs; bootstrap and Entra trust now use that exact subject. No live deletion or Terraform deployment has been performed yet.
 
 See the [bootstrap and cleanup runbook](../runbooks/bootstrap.md).

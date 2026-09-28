@@ -65,6 +65,9 @@ initialize() {
            (.workload_resource_group | test("^[A-Za-z0-9_-]{1,90}$")) and
            (.bootstrap_resource_group != .workload_resource_group) and
            (.github_repository | test("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")) and
+           ((.github_owner_id == null and .github_repository_id == null) or
+            ((.github_owner_id | type == "string" and test("^[0-9]+$")) and
+             (.github_repository_id | type == "string" and test("^[0-9]+$")))) and
            (.state_container | test("^[a-z0-9]+(-[a-z0-9]+)*$") and length >= 3 and length <= 63) and
            (.github_branch | type == "string" and length > 0) and
            (.state_key | type == "string" and length > 0) and
@@ -89,6 +92,11 @@ initialize() {
   ROLE_ID=$(uuid5 "$SUB_SCOPE/ai-poc-rg-writer/$SUFFIX")
   ROLE_NAME="AI POC Resource Group Writer $SUFFIX"
   SUBJECT="repo:$REPOSITORY:ref:refs/heads/$BRANCH"
+  if jq -e '.github_owner_id != null' <<< "$CONFIG" >/dev/null; then
+    OWNER_ID=$(jq -r .github_owner_id <<< "$CONFIG")
+    REPO_ID=$(jq -r .github_repository_id <<< "$CONFIG")
+    SUBJECT="repo:${REPOSITORY%%/*}@$OWNER_ID/${REPOSITORY#*/}@$REPO_ID:ref:refs/heads/$BRANCH"
+  fi
   SUB_ARGS=(--subscription "$SUBSCRIPTION_ID")
   printf '%s\n' "Operation: $OPERATION" "Subscription: $SUBSCRIPTION_ID" "Tenant: $TENANT_ID" \
     "Bootstrap group: $BOOTSTRAP_RG ($LOCATION)" "Storage: $STORAGE_NAME / $CONTAINER / $STATE_KEY" \

@@ -5,6 +5,8 @@
   "bootstrap_resource_group": "rg-ai-platform-bootstrap",
   "workload_resource_group": "rg-ai-platform-poc",
   "github_repository": "kxw9298/enterprise-ai-platform-poc",
+  "github_owner_id": "17515296",
+  "github_repository_id": "1391446926",
   "github_branch": "main",
   "state_container": "tfstate",
   "state_key": "poc.tfstate"

@@ -43,6 +43,7 @@ jq -e '.provisioned == true and (.assignments | length) == 3' "$BOOTSTRAP_LOCAL_
 [[ -s "$BOOTSTRAP_LOCAL_DIR/backend.hcl" && -s "$BOOTSTRAP_LOCAL_DIR/github-variables.json" ]]
 grep -q staipocc38dc8cb9cf7 "$TEST_DIR/output"
 jq -e '.custom_role_id == "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"' "$BOOTSTRAP_LOCAL_DIR/manifest.json" >/dev/null
+jq -e '.[0].subject == "repo:kxw9298@17515296/enterprise-ai-platform-poc@1391446926:ref:refs/heads/main"' "$MOCK_DIR/credentials.json" >/dev/null
 cp "$BOOTSTRAP_LOCAL_DIR/manifest.json" "$TEST_DIR/first-manifest.json"
 pass 'setup preserves resource names and records the actual Azure role ID'
 : > "$MOCK_DIR/calls.log"

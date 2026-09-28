@@ -2,7 +2,7 @@
 
 These scripts prepare the Azure resources that Terraform depends on. They are **not managed by Terraform**. Preparing these scripts does not deploy resources or configure GitHub Actions.
 
-**Execution status (2026-09-28):** bootstrap provisioning completed in the configured subscription. Verified storage provisioning, TLS 1.2, disabled shared keys/anonymous blob access, versioning, seven-day soft deletion, operator container access, secretless application, branch-bound OIDC trust, and the pipeline's two scoped role assignments. The POC resource group does not exist yet. GitHub Actions OIDC login and Terraform deployment remain untested; cleanup has not been executed against Azure.
+**Execution status (2026-09-28):** bootstrap provisioning completed in the configured subscription. Verified storage provisioning, TLS 1.2, disabled shared keys/anonymous blob access, versioning, seven-day soft deletion, operator container access, secretless application, branch-bound OIDC trust, and the pipeline's two scoped role assignments. [GitHub Actions OIDC login and read access passed](github-actions.md). The POC resource group does not exist yet; Terraform deployment and live cleanup remain untested.
 
 ## Ownership
 
@@ -10,7 +10,7 @@ These scripts prepare the Azure resources that Terraform depends on. They are **
 | --- | --- |
 | Bootstrap scripts | `rg-ai-platform-bootstrap`, state storage account/container, Entra application/service principal/federated credential, custom role, initial RBAC assignments |
 | Terraform, implemented next | `rg-ai-platform-poc` and platform resources inside it |
-| Separate GitHub configuration, implemented next | Actions workflows and repository variables |
+| Separate GitHub configuration | OIDC-check workflow and repository variables; Terraform deployment workflow comes next |
 
 The bootstrap does not create the POC group, a client secret, AKS, GPUs, or models. Storage is Standard LRS with HTTPS/TLS 1.2, shared-key authentication disabled, anonymous blob access disabled, blob versioning, and seven-day blob soft deletion. Storage and retained versions incur usage charges.
 
@@ -85,11 +85,13 @@ OIDC trust is restricted to:
 
 ```text
 Issuer:   https://token.actions.githubusercontent.com
-Subject:  repo:kxw9298/enterprise-ai-platform-poc:ref:refs/heads/main
+Subject:  repo:kxw9298@17515296/enterprise-ai-platform-poc@1391446926:ref:refs/heads/main
 Audience: api://AzureADTokenExchange
 ```
 
 No PR subject or GitHub Environment subject is trusted. A future workflow must run on `main`, request `id-token: write`, and use the generated client/tenant/subscription IDs. Adding `environment:` changes the OIDC subject and will require a reviewed federation change. Protect write access to `main` since workflows on that branch can use this identity.
+
+This new repository uses GitHub's immutable OIDC subject format. The numeric owner/repository IDs in `config.json` are non-secret and were verified using GitHub's repository and OIDC APIs. If both IDs are omitted, the script supports the legacy format for older repositories; do not omit them for this POC. Changing an existing trust rule requires an explicit Azure credential update and a matching local manifest configuration update; setup intentionally refuses silent trust changes.
 
 | Permission | Scope | Purpose |
 | --- | --- | --- |
@@ -181,7 +183,7 @@ bash tests/bootstrap/run.sh
 for script in scripts/bootstrap/*.sh tests/bootstrap/*.sh; do bash -n "$script"; done
 ```
 
-The shell tests put a fake `az` executable first on PATH, use isolated temporary records, and exercise setup, retries, workload access, and cleanup guards without cloud access. They are not live Azure integration tests. Live provisioning and operator access have now been verified as noted above; a real OIDC login must still be tested from the future workflow.
+The shell tests put a fake `az` executable first on PATH, use isolated temporary records, and exercise setup, retries, workload access, and cleanup guards without cloud access. They are not live Azure integration tests. Live provisioning, operator access, and GitHub OIDC authentication/read access have now been verified as noted above. Terraform state write/locking, platform deployment, and live teardown are later checks.
 
 ## References
 
