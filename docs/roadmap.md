@@ -1,6 +1,6 @@
 # POC roadmap
 
-All milestones are initially pending. Keep resources short-lived and validate each layer before expanding scope.
+Azure subscription, Entra pipeline identity, remote state, and the initial Terraform resource-group deployment are complete. Power Platform/Copilot Studio setup and platform services remain pending. Keep resources short-lived and validate each layer before expanding scope.
 
 This plan implements [ADR 0001: Enterprise AI platform architecture](decisions/0001-enterprise-ai-platform-architecture.md). Security requirements apply throughout; milestone 7 validates the integrated controls rather than introducing security for the first time.
 

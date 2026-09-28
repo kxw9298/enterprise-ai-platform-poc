@@ -37,10 +37,10 @@ data/samples/          Synthetic, non-sensitive test data
 2. Review the [architecture outline](docs/architecture/README.md).
 3. Record implementation choices as [architecture decisions](docs/decisions/README.md).
 4. Follow the [bootstrap and cleanup runbook](docs/runbooks/bootstrap.md) to prepare the IaC backend and pipeline identity.
-5. Verify [GitHub Actions authentication](docs/runbooks/github-actions.md) before implementing Terraform deployments.
+5. Verify [GitHub Actions authentication](docs/runbooks/github-actions.md) before running Terraform deployments.
 6. Use the [Terraform POC pipeline](docs/runbooks/terraform-pipeline.md) to plan and deploy the resource group foundation.
 
-The initial milestone is establishing one Entra tenant, an Azure subscription, and a Power Platform/Copilot Studio environment. No cloud resources are provisioned by this scaffold.
+The initial milestone is establishing one Entra tenant, an Azure subscription, and a Power Platform/Copilot Studio environment. Azure bootstrap and the Terraform-managed POC resource group are deployed; Power Platform/Copilot Studio and platform services remain upcoming. See the [pipeline runbook](docs/runbooks/terraform-pipeline.md) for deployment evidence.
 
 ## Working conventions
 

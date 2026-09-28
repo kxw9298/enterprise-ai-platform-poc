@@ -2,15 +2,15 @@
 
 These scripts prepare the Azure resources that Terraform depends on. They are **not managed by Terraform**. Preparing these scripts does not deploy resources or configure GitHub Actions.
 
-**Execution status (2026-09-28):** bootstrap provisioning completed in the configured subscription. Verified storage provisioning, TLS 1.2, disabled shared keys/anonymous blob access, versioning, seven-day soft deletion, operator container access, secretless application, branch-bound OIDC trust, and the pipeline's two scoped role assignments. [GitHub Actions OIDC login and read access passed](github-actions.md). The POC resource group does not exist yet; Terraform deployment and live cleanup remain untested.
+**Execution status (2026-09-28):** bootstrap provisioning completed in the configured subscription. Verified storage provisioning, TLS 1.2, disabled shared keys/anonymous blob access, versioning, seven-day soft deletion, operator container access, secretless application, branch-bound OIDC trust, and the pipeline's two scoped role assignments. [GitHub Actions OIDC login and read access passed](github-actions.md). Terraform has created `rg-ai-platform-poc`, and the pipeline now has Contributor scoped to that group. See [pipeline deployment evidence](terraform-pipeline.md). Live cleanup remains untested.
 
 ## Ownership
 
 | Owner | Resources |
 | --- | --- |
 | Bootstrap scripts | `rg-ai-platform-bootstrap`, state storage account/container, Entra application/service principal/federated credential, custom role, initial RBAC assignments |
-| Terraform, implemented next | `rg-ai-platform-poc` and platform resources inside it |
-| Separate GitHub configuration | OIDC-check workflow and repository variables; Terraform deployment workflow comes next |
+| Terraform | `rg-ai-platform-poc` and platform resources inside it |
+| Separate GitHub configuration | OIDC-check and Terraform deployment workflows, and repository variables |
 
 The bootstrap does not create the POC group, a client secret, AKS, GPUs, or models. Storage is Standard LRS with HTTPS/TLS 1.2, shared-key authentication disabled, anonymous blob access disabled, blob versioning, and seven-day blob soft deletion. Storage and retained versions incur usage charges.
 
@@ -68,7 +68,7 @@ bash scripts/bootstrap/setup.sh --execute
 The command validates the active tenant/subscription, creates resources, and saves:
 
 - `.local/bootstrap/manifest.json`: ownership token, IDs, configuration, and assignment inventory used for retries and cleanup.
-- `.local/bootstrap/backend.hcl`: backend configuration for a future Terraform root.
+- `.local/bootstrap/backend.hcl`: backend configuration for the Terraform root.
 - `.local/bootstrap/github-variables.json`: non-secret values to configure in GitHub later.
 
 These files are ignored by Git. Keep a secure backup of the manifest until teardown. Do not delete it after a failed run: rerun the same command with the same configuration. Scripts refuse to adopt resources without matching ownership markers. Partial setup is recoverable because names are deterministic and Azure IDs/role-assignment intentions are journaled. If an Azure write succeeds but its response is lost, rerunning discovers the owned resource.
@@ -102,9 +102,9 @@ This new repository uses GitHub's immutable OIDC subject format. The numeric own
 
 The custom role **can create/update any resource group in this subscription**; it is not name-restricted. It cannot delete groups or deploy services by itself, and does not grant RBAC administration. Use a dedicated POC subscription. The design intentionally avoids subscription-wide Contributor.
 
-## 4. Terraform foundation and workload access (later)
+## 4. Terraform foundation and workload access
 
-The Terraform root and Actions pipeline are the next implementation step; they are not included in this bootstrap change. First define **only** the POC resource group, with these tags:
+The [Terraform pipeline](terraform-pipeline.md) manages the foundation in `infra/poc`. It initially defines **only** the POC resource group, with these tags:
 
 ```hcl
 resource "azurerm_resource_group" "poc" {
@@ -118,20 +118,7 @@ resource "azurerm_resource_group" "poc" {
 }
 ```
 
-Use an empty `backend "azurerm" {}` block with the generated backend file. Set AzureRM provider `subscription_id` explicitly and `resource_provider_registrations = "none"` for this limited identity. Register required Azure resource providers as an administrator before later service deployments; this script does not change provider registrations.
-
-Example commands once `infra/poc` exists:
-
-```bash
-# Authenticate locally using the Azure CLI session; use OIDC in GitHub instead.
-export ARM_SUBSCRIPTION_ID=a48d0557-360a-4849-8b56-a73b28f66aa6
-export ARM_TENANT_ID=eb241c67-e72d-4862-ae41-7686706624c4
-terraform -chdir=infra/poc init -backend-config=../../.local/bootstrap/backend.hcl
-terraform -chdir=infra/poc plan
-terraform -chdir=infra/poc apply
-```
-
-The pipeline will use `ARM_USE_OIDC=true`, `ARM_USE_AZUREAD=true`, and `ARM_CLIENT_ID` plus the tenant/subscription values. Do not use client secrets or storage keys. The backend uses container-level data access, so it does not need storage account key lookup.
+Follow the [Terraform pipeline runbook](terraform-pipeline.md) for remote state initialization, local authentication, and manual GitHub plan/apply operations. The provider uses explicit subscription configuration and disables automatic provider registration for the limited pipeline identity. An administrator must register providers needed by future services. Authentication uses OIDC in GitHub and the Azure CLI session locally, with no client secrets or storage keys.
 
 Once Terraform has created the group, run as the bootstrap administrator:
 
@@ -183,7 +170,7 @@ bash tests/bootstrap/run.sh
 for script in scripts/bootstrap/*.sh tests/bootstrap/*.sh; do bash -n "$script"; done
 ```
 
-The shell tests put a fake `az` executable first on PATH, use isolated temporary records, and exercise setup, retries, workload access, and cleanup guards without cloud access. They are not live Azure integration tests. Live provisioning, operator access, and GitHub OIDC authentication/read access have now been verified as noted above. Terraform state write/locking, platform deployment, and live teardown are later checks.
+The shell tests put a fake `az` executable first on PATH, use isolated temporary records, and exercise setup, retries, workload access, and cleanup guards without cloud access. They are not live Azure integration tests. Live provisioning, operator access, and GitHub OIDC authentication/read access have now been verified as noted above. Terraform backend initialization, state writes, and resource-group deployment have also passed through GitHub Actions. Live teardown remains untested.
 
 ## References
 

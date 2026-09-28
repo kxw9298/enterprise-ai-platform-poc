@@ -95,3 +95,11 @@ The Contributor assignment from `grant-workload.sh` must exist before group dele
 
 - [HashiCorp: AzureRM backend, OIDC, and state locking](https://developer.hashicorp.com/terraform/language/backend/azurerm)
 - [AzureRM provider configuration](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs)
+
+## Deployment evidence (2026-09-28)
+
+- [Initial plan](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36427491795): one resource group to add, no changes or deletions.
+- [Apply](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36427782884): succeeded at commit `54c91a1699b926d55386e0aacb34364d39959e4b`.
+- Azure verification: `rg-ai-platform-poc` provisioned successfully in `eastus` with the expected tags; pipeline Contributor assignment scoped only to that group; `poc.tfstate` exists in the backend and its lease is released.
+- [Post-apply plan](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36427963407): succeeded and reported **No changes. Your infrastructure matches the configuration.**
+- Destroy operations are implemented but have not been executed.
