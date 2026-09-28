@@ -39,6 +39,10 @@ The first option matches the POC's intended learning and validation scope. The o
 
 APIM's exact tier and topology remain open. Fine-grained policy enforcement is required, but choosing OPA as its implementation remains open. Likewise, GitOps is a delivery direction; Argo CD has not been selected.
 
+## Reference architecture refinement
+
+The user reaffirmed AKS for agents, MCP servers and future self-hosted LLMs on 2026-09-28. [ADR 0003](0003-adapt-ai-landing-zone-for-aks.md) proposes gateway boundaries, Foundry organization, private access design and phased delivery based on the Azure AI Landing Zones reference. Its detailed design remains proposed.
+
 ## Delivery sequence
 
 Follow the [POC roadmap](../roadmap.md): account foundation, design validation, network/identity, AKS runtime, managed models/gateway, data/RAG, security/operations verification, private Copilot integration, then extensions.
@@ -59,7 +63,7 @@ Security requirements apply from the foundation phase; the later security milest
 - Azure regions, resource naming, address ranges, and Power Platform environment/licensing.
 - APIM tier, private ingress/egress topology, and Copilot connector/MCP path.
 - APIM-only versus APIM plus LiteLLM, and the approach to cost calculation and client budgets.
-- Terraform versus Bicep; application language/framework; CI/CD and GitOps tooling.
+- Application language/framework and GitOps tooling. Terraform with GitHub Actions OIDC is implemented for the foundation; see ADR 0002.
 - OAuth delegation/OBO requirements, policy engine, and retrieval access filtering.
 - Model deployments, quotas, GPU SKU, and measured cost envelope.
 
@@ -67,4 +71,4 @@ Record these as subsequent ADRs when evaluated rather than silently treating exa
 
 ## Verification evidence
 
-The repository scaffold and documentation are committed. No cloud resources or integration tests have been run. The planning conversation supplies requirements, not independently verified product capabilities or prices. Capture vendor documentation, selected SKUs, test results, traces, and cost evidence as implementation proceeds.
+The repository, Azure bootstrap, and Terraform POC resource group are deployed; see the [pipeline runbook](../runbooks/terraform-pipeline.md) for verification. AI runtime and model integrations remain unimplemented. The planning conversation supplies requirements, not independently verified product capabilities or prices. Capture vendor documentation, selected SKUs, test results, traces, and cost evidence as implementation proceeds.

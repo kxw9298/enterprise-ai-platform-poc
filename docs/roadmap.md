@@ -16,6 +16,10 @@ This plan implements [ADR 0001: Enterprise AI platform architecture](decisions/0
 | 8. Private Copilot integration | Supported connector/tool path, Power Platform enterprise policy, private endpoints | Copilot reaches internal agent/MCP services through the verified private path |
 | 9. Optional extensions | GPU/vLLM, additional clients, Azure–GCP connectivity | One extension validated with measured cost and documented teardown |
 
+## Proposed revised implementation sequence
+
+[ADR 0003](decisions/0003-adapt-ai-landing-zone-for-aks.md) proposes validating network/access and the managed-model gateway before deploying AKS workloads, then adding retrieval, Copilot integration and GPU inference. Its phase table includes acceptance criteria and is the proposed detailed execution plan; the milestones above remain the overall scope. Copilot licensing/private connectivity and cost feasibility move to the initial design checks. AKS remains the runtime for agents, MCP and future self-hosted models.
+
 ## Cost and cleanup
 
 Before provisioning, estimate costs for the actual SKUs, regions, licensing, and intended runtime. Pay particular attention to APIM networking tiers, managed Power Platform environments, AI Search, AKS nodes, private endpoints, and optional GPU/VPN/DNS resolver resources.
