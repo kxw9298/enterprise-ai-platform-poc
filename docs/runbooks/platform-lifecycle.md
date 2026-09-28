@@ -107,3 +107,9 @@ After down, Terraform should retain only the POC group. Confirm its resource inv
 - [APIM network requirements](https://learn.microsoft.com/en-us/azure/api-management/virtual-network-reference)
 - [Token metrics policy](https://learn.microsoft.com/en-us/azure/api-management/llm-emit-token-metric-policy)
 - [Copilot Studio MCP connection](https://learn.microsoft.com/en-us/microsoft-copilot-studio/mcp-add-existing-server-to-agent)
+
+## Verification evidence
+
+- [GitHub OIDC full plan](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36472208637) passed at commit `a5dfa26`: 37 additions, no changes/deletions.
+- Local `down-plan` passed with no changes against the current resource-group-only state. This validates configuration and guard behavior, not deletion of a deployed stack. Live teardown remains untested.
+- Read-only administrator preflight identified eight unregistered providers; effective administrator role/purge permission checks passed. GitHub remains scoped Contributor and requires a separate permission design before apply.

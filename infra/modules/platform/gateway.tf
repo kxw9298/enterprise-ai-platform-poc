@@ -80,7 +80,7 @@ resource "azurerm_api_management_api" "mcp" {
   path                  = "mcp"
   protocols             = ["https"]
   subscription_required = false
-  service_url           = "http://${local.mcp_ip}:8080/mcp"
+  service_url           = "http://${local.mcp_ip}:8080"
 }
 resource "azurerm_api_management_api_operation" "mcp" {
   for_each            = toset(["GET", "POST", "DELETE"])

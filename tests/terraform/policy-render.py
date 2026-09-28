@@ -27,6 +27,7 @@ with tempfile.TemporaryDirectory() as work:
     trusted = ["22222222-2222-2222-2222-222222222222"]
     mcp = render("mcp", trusted)
     assert mcp.find("inbound/validate-azure-ad-token/client-application-ids/application-id").text == trusted[0]
+    assert mcp.find("inbound/rewrite-uri").attrib["template"] == "/mcp"
     assert mcp.find("backend/forward-request").attrib["buffer-response"] == "false"
     model = render("model", trusted)
     assert model.find("inbound/authentication-managed-identity") is not None
