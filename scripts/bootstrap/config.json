@@ -1,0 +1,11 @@
+{
+  "subscription_id": "a48d0557-360a-4849-8b56-a73b28f66aa6",
+  "tenant_id": "eb241c67-e72d-4862-ae41-7686706624c4",
+  "location": "eastus",
+  "bootstrap_resource_group": "rg-ai-platform-bootstrap",
+  "workload_resource_group": "rg-ai-platform-poc",
+  "github_repository": "kxw9298/enterprise-ai-platform-poc",
+  "github_branch": "main",
+  "state_container": "tfstate",
+  "state_key": "poc.tfstate"
+}

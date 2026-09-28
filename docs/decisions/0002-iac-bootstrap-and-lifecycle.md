@@ -1,0 +1,38 @@
+# ADR 0002: IaC bootstrap and lifecycle
+
+- **Date:** 2026-09-27
+- **Status:** Accepted direction; live Azure validation pending
+
+## Context
+
+The user selected Azure CLI for resources needed by the IaC pipeline and Terraform for the platform itself. The state backend and deployment identity must exist before the pipeline can initialize Terraform. The user also requested cleanup for resources outside Terraform ownership.
+
+## Options considered
+
+1. One Terraform root owns its own backend: introduces a bootstrap dependency and risks deleting state during platform teardown.
+2. A separate Terraform bootstrap root using local state: workable, but creates another state lifecycle to secure and retain.
+3. Azure CLI bootstrap plus Terraform platform root: selected for a small, explicit one-time foundation.
+
+## Decision
+
+- Keep bootstrap resources in `rg-ai-platform-bootstrap`, outside Terraform ownership.
+- Use scripts invoking Azure CLI to create state storage, Entra app/service principal, GitHub branch-bound OIDC federation, and initial RBAC. Do not create client secrets.
+- Terraform owns `rg-ai-platform-poc` and future platform resources. The Terraform root and Actions workflow are implemented in a subsequent step.
+- Store state in a dedicated Entra-authenticated blob container. Initially allow authenticated access over the public storage endpoint so GitHub-hosted runners and the developer machine can reach it.
+- Give the pipeline only resource-group read/write operations at subscription scope initially. After Terraform creates the POC group, an administrator grants Contributor scoped to that group. Keep RBAC delegation a separate decision.
+- Record ownership and assignment IDs in an ignored local manifest. Both setup and cleanup preview without making Azure calls unless execution is explicitly requested.
+- Destroy Terraform resources before deleting the backend or identity. Cleanup checks ownership, workload-group absence, current state, and unexpected resources, then requires explicit acknowledgment of state-history deletion.
+
+## Consequences
+
+The pipeline can create/update groups throughout this dedicated subscription, but cannot initially delete groups, deploy services, or grant roles. Subsequent Contributor access is limited to the POC group. Future workload role assignments need deliberate additional authorization.
+
+The state container is access-controlled but is not network-isolated. A future private endpoint requires reachable runners and a separate design change. Backend storage/version retention carries usage costs.
+
+Keep the recovery manifest until cleanup. The cleanup script cannot discover all manually created orphan resources, Power Platform subscriptions/environments, or GitHub settings; the runbook lists these separate responsibilities. Stop pipeline activity before teardown to avoid races.
+
+## Verification evidence
+
+Local mocked tests exercise preview behavior, account checks, ownership checks, cleanup guards, state checks, assignment journaling, and retry behavior. Azure CLI command syntax was checked against installed CLI help. No live provisioning, deletion, Terraform deployment, or GitHub OIDC login has been performed for this change.
+
+See the [bootstrap and cleanup runbook](../runbooks/bootstrap.md).

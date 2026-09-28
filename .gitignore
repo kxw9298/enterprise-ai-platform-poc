@@ -9,6 +9,7 @@
 *.kubeconfig
 kubeconfig
 secrets/
+.local/
 
 # Terraform and local infrastructure state
 .terraform/

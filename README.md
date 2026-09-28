@@ -36,6 +36,7 @@ data/samples/          Synthetic, non-sensitive test data
 1. Read the [POC roadmap](docs/roadmap.md).
 2. Review the [architecture outline](docs/architecture/README.md).
 3. Record implementation choices as [architecture decisions](docs/decisions/README.md).
+4. Follow the [bootstrap and cleanup runbook](docs/runbooks/bootstrap.md) to prepare the IaC backend and pipeline identity.
 
 The initial milestone is establishing one Entra tenant, an Azure subscription, and a Power Platform/Copilot Studio environment. No cloud resources are provisioned by this scaffold.
 

@@ -1,0 +1,167 @@
+# Bootstrap and cleanup
+
+These scripts prepare the Azure resources that Terraform depends on. They are **not managed by Terraform**. Preparing these scripts does not deploy resources or configure GitHub Actions.
+
+## Ownership
+
+| Owner | Resources |
+| --- | --- |
+| Bootstrap scripts | `rg-ai-platform-bootstrap`, state storage account/container, Entra application/service principal/federated credential, custom role, initial RBAC assignments |
+| Terraform, implemented next | `rg-ai-platform-poc` and platform resources inside it |
+| Separate GitHub configuration, implemented next | Actions workflows and repository variables |
+
+The bootstrap does not create the POC group, a client secret, AKS, GPUs, or models. Storage is Standard LRS with HTTPS/TLS 1.2, shared-key authentication disabled, anonymous blob access disabled, blob versioning, and seven-day blob soft deletion. Storage and retained versions incur usage charges.
+
+**Private container does not mean private network endpoint.** The backend initially has a public network endpoint requiring Entra authentication. This allows a laptop and GitHub-hosted runners to reach it. A private endpoint needs a runner/network design and is a later change. Versioning and soft deletion do not protect against deleting the entire storage account.
+
+## Prerequisites
+
+- Python 3.9+ and Azure CLI. Scripts use Python's standard library and invoke `az` without a shell.
+- An interactive Azure login in the intended tenant/subscription.
+- Azure permissions to create the bootstrap resource group/storage, custom roles, and role assignments. Subscription Owner is sufficient for the Azure side; Entra app creation is a separate tenant permission and may be restricted.
+- Use the same operator for bootstrap retries; their Entra object ID is recorded and receives state-container access.
+- Review [config.json](../../scripts/bootstrap/config.json). Subscription/tenant IDs are identifiers, not secrets. The defaults target this POC's subscription and `main` branch.
+
+```bash
+az login --tenant eb241c67-e72d-4862-ae41-7686706624c4
+az account set --subscription a48d0557-360a-4849-8b56-a73b28f66aa6
+```
+
+All commands below run from the repository root. Run only one bootstrap/cleanup process at a time.
+
+## 1. Preview
+
+```bash
+bash scripts/bootstrap/setup.sh
+```
+
+The default is an **offline preview**: it prints configuration and deterministic resource names without calling Azure or writing files. It does not check permissions or name availability.
+
+## 2. Provision bootstrap resources
+
+When ready to create the reviewed resources and permissions:
+
+```bash
+bash scripts/bootstrap/setup.sh --execute
+```
+
+The command validates the active tenant/subscription, creates resources, and saves:
+
+- `.local/bootstrap/manifest.json`: ownership token, IDs, configuration, and assignment inventory used for retries and cleanup.
+- `.local/bootstrap/backend.hcl`: backend configuration for a future Terraform root.
+- `.local/bootstrap/github-variables.json`: non-secret values to configure in GitHub later.
+
+These files are ignored by Git. Keep a secure backup of the manifest until teardown. Do not delete it after a failed run: rerun the same command with the same configuration. Scripts refuse to adopt resources without matching ownership markers. Partial setup is recoverable because names are deterministic and Azure IDs/role-assignment intentions are journaled. If an Azure write succeeds but its response is lost, rerunning discovers the owned resource.
+
+If Graph/Entra or RBAC propagation causes a transient failure, wait a few minutes and rerun. Other permission/name conflicts must be resolved first. If the manifest is lost, stop and recover it or manually inventory resources; do not generate a fresh manifest to claim existing resources.
+
+## 3. Identity and permission design
+
+OIDC trust is restricted to:
+
+```text
+Issuer:   https://token.actions.githubusercontent.com
+Subject:  repo:kxw9298/enterprise-ai-platform-poc:ref:refs/heads/main
+Audience: api://AzureADTokenExchange
+```
+
+No PR subject or GitHub Environment subject is trusted. A future workflow must run on `main`, request `id-token: write`, and use the generated client/tenant/subscription IDs. Adding `environment:` changes the OIDC subject and will require a reviewed federation change. Protect write access to `main` since workflows on that branch can use this identity.
+
+| Permission | Scope | Purpose |
+| --- | --- | --- |
+| Custom Resource Group Writer | Subscription | Read/create/update resource groups and read subscription metadata |
+| Storage Blob Data Contributor, pipeline identity | State container only | Terraform state and locking |
+| Storage Blob Data Contributor, bootstrap operator | State container only | Local Terraform and cleanup state checks |
+| Contributor, added in step 4 | POC group only | Deploy/destroy platform resources and the POC group |
+
+The custom role **can create/update any resource group in this subscription**; it is not name-restricted. It cannot delete groups or deploy services by itself, and does not grant RBAC administration. Use a dedicated POC subscription. The design intentionally avoids subscription-wide Contributor.
+
+## 4. Terraform foundation and workload access (later)
+
+The Terraform root and Actions pipeline are the next implementation step; they are not included in this bootstrap change. First define **only** the POC resource group, with these tags:
+
+```hcl
+resource "azurerm_resource_group" "poc" {
+  name     = "rg-ai-platform-poc"
+  location = "eastus"
+  tags = {
+    project      = "enterprise-ai-platform-poc"
+    environment  = "poc"
+    "managed-by" = "terraform"
+  }
+}
+```
+
+Use an empty `backend "azurerm" {}` block with the generated backend file. Set AzureRM provider `subscription_id` explicitly and `resource_provider_registrations = "none"` for this limited identity. Register required Azure resource providers as an administrator before later service deployments; this script does not change provider registrations.
+
+Example commands once `infra/poc` exists:
+
+```bash
+# Authenticate locally using the Azure CLI session; use OIDC in GitHub instead.
+export ARM_SUBSCRIPTION_ID=a48d0557-360a-4849-8b56-a73b28f66aa6
+export ARM_TENANT_ID=eb241c67-e72d-4862-ae41-7686706624c4
+terraform -chdir=infra/poc init -backend-config=../../.local/bootstrap/backend.hcl
+terraform -chdir=infra/poc plan
+terraform -chdir=infra/poc apply
+```
+
+The pipeline will use `ARM_USE_OIDC=true`, `ARM_USE_AZUREAD=true`, and `ARM_CLIENT_ID` plus the tenant/subscription values. Do not use client secrets or storage keys. The backend uses container-level data access, so it does not need storage account key lookup.
+
+Once Terraform has created the group, run as the bootstrap administrator:
+
+```bash
+python3 scripts/bootstrap/bootstrap.py grant-workload
+python3 scripts/bootstrap/bootstrap.py grant-workload --execute
+```
+
+This grants Contributor **only on `rg-ai-platform-poc`**. It is kept in the bootstrap manifest so cleanup can remove it. Terraform can then deploy resources and eventually delete the group. Contributor cannot create workload RBAC assignments: implement narrowly scoped, preferably conditioned role-assignment delegation as a separate reviewed step before Terraform starts managing those assignments. The bootstrap does not grant Owner or User Access Administrator to the pipeline.
+
+## 5. Teardown in the correct order
+
+1. Stop or disable deployment workflows and ensure no Terraform operation is running. Do not rerun them during cleanup.
+2. With state storage and pipeline permissions still present, run the platform's Terraform destroy. Inspect its plan and confirm destruction. If `infra/poc` has not been implemented/applied, skip Terraform.
+3. Confirm the POC group is gone and the current state contains no managed resource instances. Save any needed state backup outside the repository. Treat backups as secrets.
+4. Preview bootstrap cleanup, then execute it explicitly.
+
+```bash
+# Once a Terraform root exists and has been initialized:
+terraform -chdir=infra/poc plan -destroy
+terraform -chdir=infra/poc destroy
+
+# Offline preview (no changes):
+bash scripts/bootstrap/cleanup.sh
+
+# Destructive: deletes bootstrap storage INCLUDING state history and versions.
+bash scripts/bootstrap/cleanup.sh --execute \
+  --confirm-state-deletion a48d0557-360a-4849-8b56-a73b28f66aa6
+```
+
+Cleanup validates account/ownership, refuses while the POC group exists, checks current state for managed instances and locks, and refuses unexpected blobs/containers/resources. API errors are failures, not evidence that resources are absent. Old state versions may describe destroyed resources; explicit state-deletion confirmation acknowledges their loss.
+
+It removes journaled subscription/workload role assignments, the custom role, service principal, application (including federation), then the bootstrap group/storage. Container-scoped assignments disappear with the group; the operator retains state-read access until that deletion completes so a retry can check state again. Resource locks or policy may block deletion; resolve them explicitly and rerun cleanup. The manifest is retained and retries tolerate already-removed resources.
+
+The guard covers the configured POC group and this backend; it cannot prove there are no orphan resources from manual operations or other state files. Review your subscription inventory first. Keep this storage account/container dedicated to this one Terraform root; additional workspaces require extending the cleanup inventory.
+
+## 6. Items outside both Terraform and this Azure cleanup
+
+- Remove any GitHub variables later configured from `github-variables.json`, and disable/remove deployment workflows. The scripts do not change GitHub settings.
+- Power Platform environments/licensing, Copilot Studio, budget alerts, and manually created resources need their own teardown if added later.
+- Azure subscription, Entra tenant, user accounts, and Azure CLI login remain intact.
+- Local backend files, manifest, Terraform cache, and any backups remain. Archive/delete them deliberately after verifying teardown. Do not commit state or backups.
+- Do not unregister shared Azure resource providers merely to clean up this POC.
+
+## Local verification
+
+```bash
+python3 -m unittest discover -s tests/bootstrap -v
+bash -n scripts/bootstrap/setup.sh scripts/bootstrap/cleanup.sh
+```
+
+These are mocked safety tests and syntax checks, not live Azure integration tests. The first approved bootstrap run must verify Azure creation, RBAC propagation, and a real OIDC login from the future workflow.
+
+## References
+
+- [Microsoft: federated application credentials](https://learn.microsoft.com/en-us/cli/azure/ad/app/federated-credential)
+- [GitHub: OIDC with Azure](https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-azure)
+- [HashiCorp: AzureRM backend and Entra/OIDC authentication](https://developer.hashicorp.com/terraform/language/backend/azurerm)
+- [Microsoft: custom Azure roles](https://learn.microsoft.com/en-us/azure/role-based-access-control/custom-roles)
