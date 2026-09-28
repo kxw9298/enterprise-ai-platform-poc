@@ -17,6 +17,7 @@ The user selected Azure CLI for resources needed by the IaC pipeline and Terrafo
 
 - Keep bootstrap resources in `rg-ai-platform-bootstrap`, outside Terraform ownership.
 - Use scripts invoking Azure CLI to create state storage, Entra app/service principal, GitHub branch-bound OIDC federation, and initial RBAC. Do not create client secrets.
+- Implement these scripts in Bash with direct Azure CLI commands and `jq` for JSON, per the user's preference for readable, familiar shell operations. Use shared helpers for safety checks and OpenSSL for stable IDs; retain the existing manifest format. Python was used initially but is no longer required for implementation or tests.
 - Terraform owns `rg-ai-platform-poc` and future platform resources. The Terraform root and Actions workflow are implemented in a subsequent step.
 - Store state in a dedicated Entra-authenticated blob container. Initially allow authenticated access over the public storage endpoint so GitHub-hosted runners and the developer machine can reach it.
 - Give the pipeline only resource-group read/write operations at subscription scope initially. After Terraform creates the POC group, an administrator grants Contributor scoped to that group. Keep RBAC delegation a separate decision.
@@ -33,6 +34,6 @@ Keep the recovery manifest until cleanup. The cleanup script cannot discover all
 
 ## Verification evidence
 
-Local mocked tests exercise preview behavior, account checks, ownership checks, cleanup guards, state checks, assignment journaling, and retry behavior. Azure CLI command syntax was checked against installed CLI help. No live provisioning, deletion, Terraform deployment, or GitHub OIDC login has been performed for this change.
+Local shell tests use a fake Azure CLI and isolated temporary files to exercise preview behavior, account checks, setup and retries, scoped workload access, ownership checks, cleanup guards, and state checks. Azure CLI command syntax was checked against installed CLI help. No live provisioning, deletion, Terraform deployment, or GitHub OIDC login has been performed for this change.
 
 See the [bootstrap and cleanup runbook](../runbooks/bootstrap.md).

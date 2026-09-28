@@ -16,7 +16,7 @@ The bootstrap does not create the POC group, a client secret, AKS, GPUs, or mode
 
 ## Prerequisites
 
-- Python 3.9+ and Azure CLI. Scripts use Python's standard library and invoke `az` without a shell.
+- Bash 3.2+, Azure CLI, `jq`, and OpenSSL. The scripts run Azure CLI commands directly; `jq` parses JSON and OpenSSL derives stable resource IDs. No Python is required. On macOS, Bash and OpenSSL are available by default; install missing tools with `brew install azure-cli jq`.
 - An interactive Azure login in the intended tenant/subscription.
 - Azure permissions to create the bootstrap resource group/storage, custom roles, and role assignments. Subscription Owner is sufficient for the Azure side; Entra app creation is a separate tenant permission and may be restricted.
 - Use the same operator for bootstrap retries; their Entra object ID is recorded and receives state-container access.
@@ -28,6 +28,15 @@ az account set --subscription a48d0557-360a-4849-8b56-a73b28f66aa6
 ```
 
 All commands below run from the repository root. Run only one bootstrap/cleanup process at a time.
+
+The implementation is split into readable Bash files:
+
+- [setup.sh](../../scripts/bootstrap/setup.sh): resource group/storage, app/service principal, OIDC federation, permissions, and local outputs.
+- [grant-workload.sh](../../scripts/bootstrap/grant-workload.sh): scoped Contributor assignment after Terraform creates the POC group.
+- [cleanup.sh](../../scripts/bootstrap/cleanup.sh): pre-deletion checks followed by explicit Azure CLI deletion commands.
+- [common.sh](../../scripts/bootstrap/common.sh): configuration, manifest updates, account/ownership checks, and stable IDs.
+
+Read and run each script as a whole: shared configuration and guards must execute before its Azure commands. Values are quoted and JSON is parsed with `jq`; configuration files are never sourced as shell code.
 
 ## 1. Preview
 
@@ -52,6 +61,8 @@ The command validates the active tenant/subscription, creates resources, and sav
 - `.local/bootstrap/github-variables.json`: non-secret values to configure in GitHub later.
 
 These files are ignored by Git. Keep a secure backup of the manifest until teardown. Do not delete it after a failed run: rerun the same command with the same configuration. Scripts refuse to adopt resources without matching ownership markers. Partial setup is recoverable because names are deterministic and Azure IDs/role-assignment intentions are journaled. If an Azure write succeeds but its response is lost, rerunning discovers the owned resource.
+
+The Bash version preserves the prior Python implementation's resource names, UUID derivation, and version-1 manifest format. Existing local manifests remain usable. `BOOTSTRAP_LOCAL_DIR` can override the local record directory (used by tests); normally leave it unset. Keep any overridden directory outside Git too.
 
 If Graph/Entra or RBAC propagation causes a transient failure, wait a few minutes and rerun. Other permission/name conflicts must be resolved first. If the manifest is lost, stop and recover it or manually inventory resources; do not generate a fresh manifest to claim existing resources.
 
@@ -110,8 +121,8 @@ The pipeline will use `ARM_USE_OIDC=true`, `ARM_USE_AZUREAD=true`, and `ARM_CLIE
 Once Terraform has created the group, run as the bootstrap administrator:
 
 ```bash
-python3 scripts/bootstrap/bootstrap.py grant-workload
-python3 scripts/bootstrap/bootstrap.py grant-workload --execute
+bash scripts/bootstrap/grant-workload.sh
+bash scripts/bootstrap/grant-workload.sh --execute
 ```
 
 This grants Contributor **only on `rg-ai-platform-poc`**. It is kept in the bootstrap manifest so cleanup can remove it. Terraform can then deploy resources and eventually delete the group. Contributor cannot create workload RBAC assignments: implement narrowly scoped, preferably conditioned role-assignment delegation as a separate reviewed step before Terraform starts managing those assignments. The bootstrap does not grant Owner or User Access Administrator to the pipeline.
@@ -153,11 +164,11 @@ The guard covers the configured POC group and this backend; it cannot prove ther
 ## Local verification
 
 ```bash
-python3 -m unittest discover -s tests/bootstrap -v
-bash -n scripts/bootstrap/setup.sh scripts/bootstrap/cleanup.sh
+bash tests/bootstrap/run.sh
+for script in scripts/bootstrap/*.sh tests/bootstrap/*.sh; do bash -n "$script"; done
 ```
 
-These are mocked safety tests and syntax checks, not live Azure integration tests. The first approved bootstrap run must verify Azure creation, RBAC propagation, and a real OIDC login from the future workflow.
+The shell tests put a fake `az` executable first on PATH, use isolated temporary records, and exercise setup, retries, workload access, and cleanup guards without cloud access. They are not live Azure integration tests. The first approved bootstrap run must verify Azure creation, RBAC propagation, and a real OIDC login from the future workflow.
 
 ## References
 
