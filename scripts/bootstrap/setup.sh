@@ -34,7 +34,12 @@ azj storage container-rm create -g "$BOOTSTRAP_RG" --storage-account "$STORAGE_N
 apps=$(azj ad app list --display-name "$APP_NAME")
 apps=$(jq -c --arg name "$APP_NAME" '[.[] | select(.displayName == $name)]' <<< "$apps")
 case "$(jq length <<< "$apps")" in
-  0) app=$(azj ad app create --display-name "$APP_NAME" --description "$TOKEN" --sign-in-audience AzureADMyOrg) ;;
+  0) # az ad app create does not expose description. Graph sets the ownership
+     # marker atomically at creation, avoiding an unmarked app after interruption.
+     app_body=$(jq -nc --arg name "$APP_NAME" --arg token "$TOKEN" \
+       '{displayName:$name, description:$token, signInAudience:"AzureADMyOrg"}')
+     app=$(azj rest --method POST --url https://graph.microsoft.com/v1.0/applications \
+       --headers Content-Type=application/json --body "$app_body") ;;
   1) app=$(jq -c '.[0]' <<< "$apps")
      jq -e --arg token "$TOKEN" '.description == $token' <<< "$app" >/dev/null || fail 'Application ownership mismatch' ;;
   *) fail 'Multiple applications match; resolve manually' ;;
@@ -69,15 +74,21 @@ role=$(jq -nc --arg name "$ROLE_NAME" --arg id "$ROLE_ID" --arg token "$TOKEN" -
     Actions:["Microsoft.Resources/subscriptions/resourceGroups/read", "Microsoft.Resources/subscriptions/resourceGroups/write",
       "Microsoft.Resources/subscriptions/read", "Microsoft.Resources/subscriptions/providers/read", "Microsoft.Resources/subscriptions/locations/read"],
     NotActions:[], DataActions:[], NotDataActions:[], AssignableScopes:[$scope]}')
-roles=$(azj role definition list --name "$ROLE_ID" "${SUB_ARGS[@]}")
+roles=$(azj role definition list --name "$ROLE_NAME" "${SUB_ARGS[@]}")
 if [[ "$(jq length <<< "$roles")" == 0 ]]; then
-  azj role definition create --role-definition "$role" "${SUB_ARGS[@]}" >/dev/null
+  created_role=$(azj role definition create --role-definition "$role" "${SUB_ARGS[@]}")
+  ROLE_ID=$(jq -er '.name | select(type == "string" and length > 0)' <<< "$created_role")
 else
   jq -e --argjson wanted "$role" 'length == 1 and .[0].description == $wanted.Description and
     .[0].assignableScopes == $wanted.AssignableScopes and
-    .[0].permissions == [{actions:$wanted.Actions, notActions:[], dataActions:[], notDataActions:[]}]' <<< "$roles" >/dev/null \
+    (.[0].permissions | map({actions,notActions,dataActions,notDataActions})) ==
+      [{actions:$wanted.Actions, notActions:[], dataActions:[], notDataActions:[]}] and
+    all(.[0].permissions[]; .condition == null and .conditionVersion == null)' <<< "$roles" >/dev/null \
     || fail 'Custom role ownership or permissions drifted; review manually'
+  ROLE_ID=$(jq -er '.[0].name | select(type == "string" and length > 0)' <<< "$roles")
 fi
+# Azure CLI may generate a role GUID despite the Id in the request. Use its returned ID.
+manifest_update --arg id "$ROLE_ID" '.custom_role_id=$id'
 assign_role "$PRINCIPAL_ID" "$ROLE_ID" "$SUB_SCOPE" ServicePrincipal
 assign_role "$PRINCIPAL_ID" "$BLOB_ROLE" "$CONTAINER_ID" ServicePrincipal
 assign_role "$OPERATOR_ID" "$BLOB_ROLE" "$CONTAINER_ID" User

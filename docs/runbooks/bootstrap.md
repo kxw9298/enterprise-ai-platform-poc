@@ -2,6 +2,8 @@
 
 These scripts prepare the Azure resources that Terraform depends on. They are **not managed by Terraform**. Preparing these scripts does not deploy resources or configure GitHub Actions.
 
+**Execution status (2026-09-28):** bootstrap provisioning completed in the configured subscription. Verified storage provisioning, TLS 1.2, disabled shared keys/anonymous blob access, versioning, seven-day soft deletion, operator container access, secretless application, branch-bound OIDC trust, and the pipeline's two scoped role assignments. The POC resource group does not exist yet. GitHub Actions OIDC login and Terraform deployment remain untested; cleanup has not been executed against Azure.
+
 ## Ownership
 
 | Owner | Resources |
@@ -26,6 +28,15 @@ The bootstrap does not create the POC group, a client secret, AKS, GPUs, or mode
 az login --tenant eb241c67-e72d-4862-ae41-7686706624c4
 az account set --subscription a48d0557-360a-4849-8b56-a73b28f66aa6
 ```
+
+For a new subscription, register the Storage resource provider before running setup:
+
+```bash
+az provider register --namespace Microsoft.Storage \
+  --subscription a48d0557-360a-4849-8b56-a73b28f66aa6 --wait
+```
+
+Without registration, initial storage creation can fail with `SubscriptionNotFound` even when the subscription is enabled. Provider registration is subscription-wide and is not removed during bootstrap cleanup.
 
 All commands below run from the repository root. Run only one bootstrap/cleanup process at a time.
 
@@ -63,6 +74,8 @@ The command validates the active tenant/subscription, creates resources, and sav
 These files are ignored by Git. Keep a secure backup of the manifest until teardown. Do not delete it after a failed run: rerun the same command with the same configuration. Scripts refuse to adopt resources without matching ownership markers. Partial setup is recoverable because names are deterministic and Azure IDs/role-assignment intentions are journaled. If an Azure write succeeds but its response is lost, rerunning discovers the owned resource.
 
 The Bash version preserves the prior Python implementation's resource names, UUID derivation, and version-1 manifest format. Existing local manifests remain usable. `BOOTSTRAP_LOCAL_DIR` can override the local record directory (used by tests); normally leave it unset. Keep any overridden directory outside Git too.
+
+Azure may generate the custom role's GUID regardless of the requested `Id`. Setup records the returned GUID as `custom_role_id` and cleanup discovers the owned role by its unique name. App creation uses `az rest` against Microsoft Graph so its ownership description is set in the same request; `az ad app create` does not expose that field.
 
 If Graph/Entra or RBAC propagation causes a transient failure, wait a few minutes and rerun. Other permission/name conflicts must be resolved first. If the manifest is lost, stop and recover it or manually inventory resources; do not generate a fresh manifest to claim existing resources.
 
@@ -168,7 +181,7 @@ bash tests/bootstrap/run.sh
 for script in scripts/bootstrap/*.sh tests/bootstrap/*.sh; do bash -n "$script"; done
 ```
 
-The shell tests put a fake `az` executable first on PATH, use isolated temporary records, and exercise setup, retries, workload access, and cleanup guards without cloud access. They are not live Azure integration tests. The first approved bootstrap run must verify Azure creation, RBAC propagation, and a real OIDC login from the future workflow.
+The shell tests put a fake `az` executable first on PATH, use isolated temporary records, and exercise setup, retries, workload access, and cleanup guards without cloud access. They are not live Azure integration tests. Live provisioning and operator access have now been verified as noted above; a real OIDC login must still be tested from the future workflow.
 
 ## References
 

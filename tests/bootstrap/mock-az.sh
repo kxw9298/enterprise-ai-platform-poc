@@ -59,9 +59,10 @@ case "$1 $2 ${3:-}" in
       jq -n --arg id "$STORAGE_RESOURCE_ID" '[{id:$id}]'
     fi ;;
   'ad app list') read_array app.json ;;
-  'ad app create')
-    jq -n --arg name "$(option --display-name "$@")" --arg token "$(option --description "$@")" \
-      '[{id:"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",appId:"cccccccc-cccc-cccc-cccc-cccccccccccc",displayName:$name,description:$token}]' > "$MOCK_DIR/app.json"
+  'rest --method POST')
+    [[ "$(option --url "$@")" == https://graph.microsoft.com/v1.0/applications ]] || exit 90
+    jq -n --argjson body "$(option --body "$@")" \
+      '[$body + {id:"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",appId:"cccccccc-cccc-cccc-cccc-cccccccccccc"}]' > "$MOCK_DIR/app.json"
     jq '.[0]' "$MOCK_DIR/app.json" ;;
   'ad app delete') printf '[]\n' > "$MOCK_DIR/app.json"; printf '{}\n' ;;
   'ad app federated-credential')
@@ -76,9 +77,9 @@ case "$1 $2 ${3:-}" in
   'role definition list') read_array role.json ;;
   'role definition create')
     jq -n --argjson role "$(option --role-definition "$@")" \
-      '[$role | {description:.Description, assignableScopes:.AssignableScopes,
-      permissions:[{actions:.Actions,notActions:[],dataActions:[],notDataActions:[]}]}]' > "$MOCK_DIR/role.json"
-    printf '{}\n' ;;
+      '[$role | {name:"eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",description:.Description, assignableScopes:.AssignableScopes,
+      permissions:[{actions:.Actions,notActions:[],dataActions:[],notDataActions:[],condition:null,conditionVersion:null}]}]' > "$MOCK_DIR/role.json"
+    jq '.[0]' "$MOCK_DIR/role.json" ;;
   'role definition delete') printf '[]\n' > "$MOCK_DIR/role.json"; printf '{}\n' ;;
   'role assignment list') read_array assignments.json ;;
   'role assignment create')

@@ -47,9 +47,12 @@ apps=$(jq -c --arg name "$APP_NAME" '[.[] | select(.displayName == $name)]' <<< 
 jq -e --arg token "$TOKEN" --slurpfile manifest "$MANIFEST" 'length <= 1 and all(.[];
   .description == $token and ($manifest[0].application_id == null or .id == $manifest[0].application_id))' <<< "$apps" >/dev/null \
   || fail 'Application ownership or ID mismatch'
-roles=$(azj role definition list --name "$ROLE_ID" "${SUB_ARGS[@]}")
+roles=$(azj role definition list --name "$ROLE_NAME" "${SUB_ARGS[@]}")
 jq -e --arg token "$TOKEN" 'length <= 1 and all(.[]; .description == $token)' <<< "$roles" >/dev/null \
   || fail 'Custom role ownership mismatch'
+if [[ "$(jq length <<< "$roles")" == 1 ]]; then
+  ROLE_ID=$(jq -er '.[0].name' <<< "$roles")
+fi
 assignments=$(azj role assignment list --all "${SUB_ARGS[@]}")
 jq -e --arg role "/$ROLE_ID" --slurpfile manifest "$MANIFEST" \
   '($manifest[0].assignments | map(ascii_downcase)) as $known |

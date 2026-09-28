@@ -92,7 +92,7 @@ initialize() {
   SUB_ARGS=(--subscription "$SUBSCRIPTION_ID")
   printf '%s\n' "Operation: $OPERATION" "Subscription: $SUBSCRIPTION_ID" "Tenant: $TENANT_ID" \
     "Bootstrap group: $BOOTSTRAP_RG ($LOCATION)" "Storage: $STORAGE_NAME / $CONTAINER / $STATE_KEY" \
-    "Pipeline application: $APP_NAME" "OIDC subject: $SUBJECT" "Custom role: $ROLE_NAME ($ROLE_ID)" \
+    "Pipeline application: $APP_NAME" "OIDC subject: $SUBJECT" "Custom role: $ROLE_NAME (actual Azure ID saved during setup)" \
     "Workload group (Terraform-owned): $WORKLOAD_RG" "Local records: $LOCAL_DIR"
   if [[ "$EXECUTE" == false ]]; then
     printf 'PREVIEW ONLY. No Azure calls or local changes. Add --execute when ready.\n'

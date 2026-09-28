@@ -41,13 +41,14 @@ pass 'interrupted setup journals assignment before failed Azure write'
 bash "$SCRIPT/setup.sh" --execute > "$TEST_DIR/output"
 jq -e '.provisioned == true and (.assignments | length) == 3' "$BOOTSTRAP_LOCAL_DIR/manifest.json" >/dev/null
 [[ -s "$BOOTSTRAP_LOCAL_DIR/backend.hcl" && -s "$BOOTSTRAP_LOCAL_DIR/github-variables.json" ]]
-grep -q ccaf3e63-3af9-55fc-9c49-eab6c587e401 "$TEST_DIR/output"
+grep -q staipocc38dc8cb9cf7 "$TEST_DIR/output"
+jq -e '.custom_role_id == "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"' "$BOOTSTRAP_LOCAL_DIR/manifest.json" >/dev/null
 cp "$BOOTSTRAP_LOCAL_DIR/manifest.json" "$TEST_DIR/first-manifest.json"
-pass 'setup creates expected outputs and preserves legacy UUID derivation'
+pass 'setup preserves resource names and records the actual Azure role ID'
 : > "$MOCK_DIR/calls.log"
 bash "$SCRIPT/setup.sh" --execute > "$TEST_DIR/output"
 cmp "$BOOTSTRAP_LOCAL_DIR/manifest.json" "$TEST_DIR/first-manifest.json"
-! grep -Eq '^(group create|storage account create|ad app create|ad sp create|role definition create)' "$MOCK_DIR/calls.log"
+! grep -Eq '^(group create|storage account create|rest --method POST|ad sp create|role definition create)' "$MOCK_DIR/calls.log"
 pass 'repeat setup reuses owned resources without duplicate IDs'
 # Workload grant rejects missing ownership tags, then succeeds with Terraform tags.
 printf '{"tags":{}}' > "$MOCK_DIR/rg-ai-platform-poc.json"
@@ -79,7 +80,7 @@ expect_block 'Application ownership' "$SCRIPT/cleanup.sh" --execute --confirm-st
 cp "$TEST_DIR/app.json" "$MOCK_DIR/app.json"
 pass 'unowned application blocks deletion'
 cp "$MOCK_DIR/assignments.json" "$TEST_DIR/assignments.json"
-jq '. + [{id:"/untracked/assignment",roleDefinitionId:"/roles/ccaf3e63-3af9-55fc-9c49-eab6c587e401"}]' \
+jq '. + [{id:"/untracked/assignment",roleDefinitionId:"/roles/eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"}]' \
   "$TEST_DIR/assignments.json" > "$MOCK_DIR/assignments.json"
 expect_block 'untracked assignments' "$SCRIPT/cleanup.sh" --execute --confirm-state-deletion "$SUB_ID"
 cp "$TEST_DIR/assignments.json" "$MOCK_DIR/assignments.json"

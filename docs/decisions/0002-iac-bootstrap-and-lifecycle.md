@@ -1,7 +1,7 @@
 # ADR 0002: IaC bootstrap and lifecycle
 
 - **Date:** 2026-09-27
-- **Status:** Accepted direction; live Azure validation pending
+- **Status:** Accepted; bootstrap provisioning verified, pipeline OIDC login and live cleanup validation pending
 
 ## Context
 
@@ -34,6 +34,6 @@ Keep the recovery manifest until cleanup. The cleanup script cannot discover all
 
 ## Verification evidence
 
-Local shell tests use a fake Azure CLI and isolated temporary files to exercise preview behavior, account checks, setup and retries, scoped workload access, ownership checks, cleanup guards, and state checks. Azure CLI command syntax was checked against installed CLI help. No live provisioning, deletion, Terraform deployment, or GitHub OIDC login has been performed for this change.
+Local shell tests use a fake Azure CLI and isolated temporary files to exercise preview behavior, account checks, setup and retries, scoped workload access, ownership checks, cleanup guards, and state checks. Bootstrap provisioning completed on 2026-09-28. Azure checks verified storage protection settings, operator container access, secretless application, branch-specific OIDC federation, and pipeline role assignments. Live execution also led to corrections for Storage provider registration, application creation through Graph, and Azure-generated custom-role IDs. No live deletion, Terraform deployment, or GitHub OIDC login has been performed yet.
 
 See the [bootstrap and cleanup runbook](../runbooks/bootstrap.md).
