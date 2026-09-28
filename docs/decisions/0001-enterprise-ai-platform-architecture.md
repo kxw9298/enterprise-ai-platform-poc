@@ -41,11 +41,11 @@ APIM's exact tier and topology remain open. Fine-grained policy enforcement is r
 
 ## Reference architecture refinement
 
-The user reaffirmed AKS for agents, MCP servers and future self-hosted LLMs on 2026-09-28. [ADR 0003](0003-adapt-ai-landing-zone-for-aks.md) proposes gateway boundaries, Foundry organization, private access design and phased delivery based on the Azure AI Landing Zones reference. Its detailed design remains proposed.
+The user reaffirmed AKS for agents, MCP servers and future self-hosted LLMs on 2026-09-28. [ADR 0003](0003-adapt-ai-landing-zone-for-aks.md) proposes gateway boundaries, Foundry organization, private access design and phased delivery based on the Azure AI Landing Zones reference. The user subsequently simplified the initial network scope to one AKS VNet, deferring a separate Copilot connection VNet and RAG. Endpoint details remain proposed.
 
 ## Delivery sequence
 
-Follow the [POC roadmap](../roadmap.md): account foundation, design validation, network/identity, AKS runtime, managed models/gateway, data/RAG, security/operations verification, private Copilot integration, then extensions.
+Follow the revised [POC roadmap](../roadmap.md): minimal design, one AKS VNet, managed model/gateway, and AKS agents/MCP. RAG, separate Copilot networking and GPU inference are later extensions. The long-term private-connectivity direction does not require a full private landing zone in the initial POC.
 
 Security requirements apply from the foundation phase; the later security milestone validates the end-to-end controls. Start with CPU workloads and managed models. Add GPU inference after the basic path works. Azure–GCP connectivity is a separate optional extension.
 

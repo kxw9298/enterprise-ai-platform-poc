@@ -1,7 +1,7 @@
 # ADR 0003: Adapt the AI Landing Zone for an AKS runtime
 
 - **Date:** 2026-09-28
-- **Status:** Proposed design refinements; AKS runtime requirement confirmed by the user
+- **Status:** Revised per user direction: one AKS VNet now; Copilot networking and RAG deferred; endpoint details remain proposed
 - **Scope:** Design and delivery plan only; no additional infrastructure deployed
 - **Extends:** [ADR 0001](0001-enterprise-ai-platform-architecture.md)
 
@@ -20,28 +20,40 @@ The existing design already has AKS, APIM, Foundry, private connectivity, and RA
 | Foundry | Managed models and AI capabilities | One current Foundry resource, one project, one initial chat deployment; shared model access through APIM; add projects/resources only for demonstrated isolation needs |
 | Safety | Integration to validate | Test model filters immediately; define explicit moderation for future self-hosted models and optional central gateway moderation |
 | Retrieval | Search and storage | Add document storage, embeddings and Search as a separate RAG phase; enforce document access before model context construction |
-| Networking | Private connectivity target | One POC VNet with explicit subnet roles initially; reserve expansion space; validate gateway, runtime, DNS, developer and CI routes before provisioning |
+| Networking | Private connectivity target | One VNet for AKS now, with only subnets required by the selected AKS configuration; defer the separate Copilot connection VNet and its integration |
 | Organization | One POC resource group | Keep one subscription and the existing POC group; use Terraform modules and labels for logical ownership; retain separate bootstrap group |
-| Delivery | Runtime before managed models | Validate a private managed-model/gateway path first, then connect AKS agents/MCP; check Copilot feasibility early even if integration comes later |
+| Delivery | Runtime before managed models | Build the AKS network and basic model/agent/tool path first; defer RAG and Copilot networking rather than make them initial prerequisites |
 
-## Proposed request paths
+## Initial scope and request paths
+
+The immediate network scope is **one AKS VNet**. Use one AKS node subnet initially if compatible with the selected networking configuration, and add only subnets required by an actual deployed component. Choose address ranges that leave room for a non-overlapping future Copilot connection network; exact CIDRs remain to be selected.
 
 ```mermaid
 flowchart LR
-    C[Copilot Studio and API clients] --> I[APIM application and MCP APIs]
-    I --> A[AKS agents]
-    I --> T[AKS MCP servers]
-    A --> T
+    C[API test client] --> I[APIM application APIs]
+    subgraph N[AKS VNet]
+        A[AKS agents]
+        T[AKS MCP servers]
+        A --> T
+    end
+    I --> A
     A --> G[APIM model APIs]
     G --> F[Foundry managed model]
-    G --> V[Future AKS vLLM GPU pool]
-    A --> S[AI Search with access filters]
-    D[Document storage and ingestion] --> S
-    T --> B[Authorized business data and tools]
-    G -. optional explicit moderation .-> CS[Content Safety]
 ```
 
-Arrows are logical calls, not finalized routes. The APIM boxes are policy roles and may share one instance. Private Copilot reachability is a validation gate, not a demonstrated capability. Internal agent-to-MCP calls may remain inside AKS with service authentication and authorization; APIM is required for exposed client APIs, not every internal call.
+The APIM boxes represent roles and may share one instance. APIM and Foundry network attachment and endpoint settings are deliberately not specified by this logical diagram. Use a simple sample MCP tool for the first test; no enterprise database or retrieval stack is required.
+
+Later additions, not initial dependencies:
+
+- **Copilot Studio:** a separate connection VNet, with peering/routing, DNS, delegation and any additional regional network requirements assessed when the integration is implemented. This is a direction, not a claim that one additional VNet alone satisfies Power Platform requirements.
+- **RAG:** AI Search, document storage, ingestion and embeddings, with document authorization.
+- **Self-hosted LLM:** vLLM on a dedicated GPU user node pool in the AKS environment, plus moderation and gateway routing.
+
+## Simplifications from the previous revision
+
+Remove the upfront private landing-zone rollout: no hub/spoke platform, firewall, VPN/ExpressRoute, Bastion, DNS Private Resolver, private build-agent subnet or dedicated private runner in the initial network plan. Do not pre-create Copilot subnets, private endpoints or DNS zones for future services. RAG and Power Platform licensing/connectivity checks move to their respective later phases.
+
+An AKS VNet does not itself make the Kubernetes API, application ingress, APIM or Foundry private. Decide those endpoint settings explicitly during implementation. A simple authenticated HTTPS path is a candidate for the POC; this design revision does not authorize exposing an existing private service or silently disabling security controls. Add private connectivity only where an agreed access requirement needs it.
 
 ## Boundaries and controls
 
@@ -64,27 +76,27 @@ Arrows are logical calls, not finalized routes. The APIM boxes are policy roles 
 
 ### Networking and operations
 
-- Proposed subnet roles: AKS nodes (with IP planning for the chosen CNI), private endpoints, APIM where its selected networking mode requires one, and private build/test access. Additional delegations, sizes and DNS zones remain to be selected.
-- Validate APIM private inbound access and outbound connectivity separately; an inbound private endpoint does not by itself provide private backend access. Check [APIM networking options](https://learn.microsoft.com/en-us/azure/api-management/virtual-network-concepts) against the exact SKU.
-- Plan private AKS API access and runtime deployment before enabling it. Hosted GitHub runners can perform many Azure control-plane operations but do not automatically reach private Kubernetes or service endpoints. Select an ephemeral runner or another supported private execution path; avoid a public-access exception as an implicit fallback.
-- Preserve the functioning OIDC/state bootstrap. Any later state-storage network restriction requires a working runner route first.
-- Use workload identity, Kubernetes RBAC, controlled image sources, resource requests/limits, pod security and network policies. Document image build/push and ACR pull access; select registry networking and SKU deliberately.
-- Collect traces across gateway, agent, tool, retrieval and model calls. Record latency, errors, token usage, client attribution and filter events; redact secrets and keep prompt/document logging disabled by default.
-- Start single-region. Defer hub firewall, ExpressRoute, multi-region deployment, semantic caching and governance workflow services until a requirement justifies their cost. This POC will not demonstrate those enterprise controls until implemented and tested.
+- Keep the initial subnet/CNI design minimal. Record node, pod and service address ranges and avoid overlap with the future Copilot network. No additional VNet is created now.
+- Select AKS API access and application ingress explicitly. Prefer a deployment path compatible with the existing GitHub Actions workflow where practical; if private endpoints are selected, resolve their access requirements at that point rather than prebuilding private runner infrastructure.
+- Select APIM networking with the tier: inbound access and backend reachability are distinct. Verify only the features needed for the current API path against [APIM networking options](https://learn.microsoft.com/en-us/azure/api-management/virtual-network-concepts).
+- Preserve the working OIDC/state bootstrap and its current network settings.
+- Keep Entra authentication, workload identity, Kubernetes RBAC, resource limits, appropriate network policies and controlled image access. Simpler topology does not remove application authorization.
+- Collect request traces, failures, token usage and client attribution. Keep credentials and sensitive prompt content out of logs by default.
+- Keep one region, one subscription and the existing POC group. Defer enterprise connectivity, additional subscriptions, semantic cache and governance workflow infrastructure.
 
 ## Implementation sequence and acceptance criteria
 
-| Phase | Deliverable | Evidence required before moving on |
+| Phase | Deliverable | Completion evidence |
 | --- | --- | --- |
-| 0. Design validation | Region/model/quota checks; APIM tier comparison; IP/DNS plan; Copilot private-path feasibility; cost worksheet and budget alerts | Exact required features supported; recurring and usage charges estimated for planned runtime; unresolved blockers recorded |
-| 1. Network and access | VNet/subnets, private DNS, runner/developer route, initial monitoring; reviewed deployment and runtime RBAC | Private DNS resolves correctly from intended callers; access denied from unintended paths; CI can reach required endpoints |
-| 2. Managed model and gateway | Foundry resource/project, one chat deployment, filter configuration, APIM model API | Authenticated private call; unauthorized/bypass tests; attribution and safety checks; first measured usage/cost |
-| 3. AKS application runtime | CPU AKS, registry, one agent and one MCP service, workload identity and deployment workflow | Agent calls model through APIM and invokes an authorized tool; denied tool/data cases fail correctly; traces span the request |
-| 4. Enterprise retrieval | Synthetic document storage, ingestion, embedding deployment and AI Search | Grounded citations; document access filters; prompt-injection and cross-user data tests |
-| 5. Copilot integration | Validated connector/MCP path and Power Platform configuration | Copilot reaches private application APIs using intended identity; authorization and attribution survive the full path |
-| 6. Self-hosted model | Dedicated GPU user pool, selected model and vLLM, gateway routing and moderation | Capacity/quota available; protocol and safety tests pass; per-request attribution; measured cost and tested pool/model cleanup |
+| 0. Minimal choices | AKS VNet/CNI/IP plan, API and ingress access choice, model availability/quota, APIM tier, short-run cost estimate | Current components can communicate and be deployed; endpoint exposure and access controls documented |
+| 1. AKS network | One VNet and required AKS subnet(s) | Terraform plan contains only agreed network resources; future address space does not overlap |
+| 2. Managed model and gateway | One Foundry resource/project, chat model, filters and APIM model API | Authenticated model call; unauthorized call denied; usage and filter tests recorded |
+| 3. AKS runtime | CPU cluster, registry, one agent, one sample MCP tool and workload identities | Client reaches agent; agent calls model through APIM and invokes the authorized tool; deployment workflow works |
+| Later: RAG | Search, documents, embeddings and ingestion | Grounded citations and document access tests |
+| Later: Copilot | Separate connection VNet and supported Power Platform integration | Required networking/licensing validated at that phase; authenticated end-to-end agent call |
+| Later: self-hosted LLM | GPU user node pool, vLLM, moderation and model gateway route | Quota, model compatibility, safety, cost and cleanup verified |
 
-Power Platform licensing and networking feasibility are checked in phase 0 to avoid discovering a topology blocker in phase 5. GPU deployment is a later explicit milestone; start with CPU services and managed inference.
+The later extensions are independent planning items; RAG is not a prerequisite for Copilot connectivity or self-hosted inference. No Power Platform setup or RAG infrastructure blocks phases 0–3.
 
 ## Terraform and lifecycle plan
 
@@ -92,13 +104,13 @@ Keep `infra/poc` and `poc.tfstate` initially. Introduce modules incrementally fo
 
 The current pipeline guard only permits the resource group. Update its resource/action allowlist and tests with each phase, preserving review of destructive changes. Do not simply remove the guard. The pipeline currently has Contributor on the POC group but cannot create role assignments: use the administrator bootstrap mechanism for narrowly scoped assignments initially, or record a separate decision for constrained RBAC delegation.
 
-Retain manual plan/apply/destroy with reviewed commit evidence. Kubernetes deployment and private data-plane configuration need their own tested execution path. Keep credentials, state and plan artifacts out of Git.
+Retain manual plan/apply/destroy with reviewed commit evidence. Kubernetes deployment needs a tested execution path matching the chosen API access mode; private data-plane access is addressed only if selected. Keep credentials, state and plan artifacts out of Git.
 
 Destroy in dependency order while the runner, identity, gateway connections and state backend still function. Remove application releases before their cluster; remove workload dependencies before networking; clean bootstrap last. Extend cleanup inventory if future resources leave the existing POC group. Log retention, disks, registry, private endpoints and state versions can survive selected workload shutdowns and must be included in cost/cleanup checks.
 
 ## Immediate next deliverable
 
-Prepare a concrete design worksheet covering exact model/region availability, APIM tier/features, private runner/developer access, subnet/DNS layout, identity-to-resource permissions and estimated cost for a short test window. No paid SKU or deployment is selected by this ADR. Then implement phase 1 and review its Terraform plan.
+Prepare the small AKS network Terraform change: one VNet, the required AKS subnet(s), and non-overlapping address ranges. Record the intended AKS networking and access mode before cluster deployment. Model and APIM selection proceed independently; neither Copilot networking nor RAG is part of this change. No paid SKU or new deployment is selected by this document.
 
 ## Additional sources
 

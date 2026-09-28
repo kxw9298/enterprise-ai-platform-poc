@@ -4,21 +4,30 @@ The platform separates user experience, gateways, runtime, AI/data services, and
 
 The accepted direction, rationale, tradeoffs, and unresolved choices are recorded in [ADR 0001](../decisions/0001-enterprise-ai-platform-architecture.md). The proposed reference-architecture adaptation and phased implementation are in [ADR 0003](../decisions/0003-adapt-ai-landing-zone-for-aks.md); AKS remains the agent, MCP and future self-hosted model runtime. Delivery milestones are in the [POC roadmap](../roadmap.md).
 
+## Initial deployment
+
+One VNet for AKS, with only the subnets required by its chosen network configuration. No additional Copilot VNet, hub network or RAG services are deployed initially. Endpoint access modes remain an explicit implementation choice; a VNet alone does not make every service private.
+
 ```mermaid
-flowchart TD
-    C[Copilot Studio / API clients] --> G[APIM]
-    G --> A[Agents on AKS]
-    G --> T[MCP servers on AKS]
-    A --> T
-    A --> M[Model gateway: APIM and optional LiteLLM]
-    M --> F[Foundry managed models]
-    M --> V[Optional vLLM on AKS]
-    A --> S[Azure AI Search]
-    D[Synthetic documents in Azure Storage] --> S
-    T --> DB[Azure databases / storage]
+flowchart LR
+    C[API test client] --> G[APIM application APIs]
+    subgraph N[AKS VNet]
+        A[Agents]
+        T[MCP servers]
+        A --> T
+    end
+    G --> A
+    A --> M[APIM model APIs]
+    M --> F[Foundry managed model]
 ```
 
-Arrows describe logical calls/data flow, not a finalized network topology. APIM's API and model gateway roles may use the same deployment.
+APIM's API and model gateway roles may share one deployment. Arrows show logical calls, not a finalized network topology.
+
+## Later extensions
+
+- Separate VNet for Copilot Studio agent connectivity; validate the supported Power Platform topology and required network resources when implementing it.
+- RAG using AI Search, document storage, ingestion and embeddings.
+- Self-hosted LLM on a dedicated AKS GPU user node pool, with gateway integration and explicit safety controls.
 
 ## Trust boundaries
 
@@ -31,10 +40,10 @@ Arrows describe logical calls/data flow, not a finalized network topology. APIM'
 
 ## Decisions to validate
 
-- Power Platform Managed Environment licensing, region pairing, DNS behavior, and connector/MCP support for private networking.
+- Later Copilot phase: Power Platform licensing, region pairing, DNS and connector/MCP network requirements.
 - APIM tier support for required inbound/outbound network paths and AI/MCP gateway features.
 - APIM alone versus APIM plus LiteLLM for per-client metering and cost/budget requirements.
-- Application stack, private AKS access/deployment path, and model availability/quota. Terraform and GitHub Actions OIDC are already implemented for the foundation.
+- Application stack, AKS API/ingress access and deployment path, and model availability/quota. Terraform and GitHub Actions OIDC are already implemented for the foundation.
 - Content safety, authorization, distributed tracing, and evaluation integration for custom AKS workloads.
 
 Multi-cloud networking and self-hosted GPU inference are later extensions. The initial path should work entirely in Azure.
