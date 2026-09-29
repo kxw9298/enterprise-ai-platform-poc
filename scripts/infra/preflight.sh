@@ -4,7 +4,7 @@ set -euo pipefail
 subscription=${TF_VAR_subscription_id:-${ARM_SUBSCRIPTION_ID:-}}
 [[ -n "$subscription" ]] || { echo 'Set TF_VAR_subscription_id.' >&2; exit 1; }
 failures=0
-for provider in Microsoft.Network Microsoft.Compute Microsoft.ContainerService Microsoft.ContainerRegistry Microsoft.ApiManagement Microsoft.CognitiveServices Microsoft.OperationalInsights Microsoft.Insights Microsoft.ManagedIdentity; do
+for provider in Microsoft.Network Microsoft.Compute Microsoft.ApiManagement Microsoft.CognitiveServices Microsoft.OperationalInsights Microsoft.Insights Microsoft.ManagedIdentity; do
   state=$(az provider show --subscription "$subscription" --namespace "$provider" --query registrationState -o tsv)
   if [[ "$state" != Registered ]]; then
     printf 'NOT READY: provider %s is %s. Register before apply.\n' "$provider" "$state"

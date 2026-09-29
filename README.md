@@ -53,4 +53,4 @@ The initial milestone is establishing one Entra tenant, an Azure subscription, a
 
 See [contribution guidance](CONTRIBUTING.md).
 
-The [disposable platform runbook](docs/runbooks/platform-lifecycle.md) covers the planned AKS/APIM/Foundry stack, per-client token telemetry, and spin-up/down lifecycle. Infrastructure code is prepared; see the runbook for plan evidence and outstanding apply prerequisites.
+The active first milestone is [Foundry through internal APIM](docs/runbooks/model-gateway-first.md): two test client identities, content filtering, request/token limits, and per-client usage and estimated cost. AKS and MCP are deferred. Terraform prepares a disposable single-region stack with Bastion access; the runbook lists deployment prerequisites and endpoint tests.

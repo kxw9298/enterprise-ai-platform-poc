@@ -1,5 +1,7 @@
 # Architecture outline
 
+**Current first milestone:** [Foundry + internal APIM model gateway](../runbooks/model-gateway-first.md), with two secretless test-client IDs, content filtering, request/token limits and per-client cost reporting. AKS/ACR/MCP are removed from the active Terraform root and deferred. Earlier AKS inventory and plan evidence below are historical; this milestone supersedes that sequence.
+
 **Scope priority:** [POC goal and success criteria](poc-success-criteria.md) govern implementation: Copilot Studio → APIM → internal MCP on AKS, with APIM model calls and per-client token/cost attribution. Copilot connectivity is core; only its additional VNet deployment is deferred from the initial network change. RAG and GPU inference remain later extensions.
 
 The platform separates user experience, gateways, runtime, AI/data services, and shared security/operations.
@@ -8,7 +10,7 @@ The accepted direction, rationale, tradeoffs, and unresolved choices are recorde
 
 ## Initial deployment
 
-One VNet for AKS, with only the subnets required by its chosen network configuration. No additional Copilot VNet, hub network or RAG services are deployed initially. Endpoint access modes remain an explicit implementation choice; a VNet alone does not make every service private.
+One VNet for AKS, with only the subnets required by its chosen network configuration. No additional Copilot VNet, hub network or RAG services are deployed initially. The prepared revision uses internal APIM and private gateway DNS. Administrator tests run from a private Linux VM reached through Bastion Basic. These add admin/Bastion subnets within the same VNet; see the [cost review](cost-review.md). AKS control-plane access remains Entra-authenticated public access; this revision does not silently make the cluster API private.
 
 ```mermaid
 flowchart LR

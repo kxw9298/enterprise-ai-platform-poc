@@ -1,5 +1,7 @@
 # POC roadmap
 
+**Current first milestone:** [Foundry + internal APIM model gateway](runbooks/model-gateway-first.md), with two secretless test-client IDs, content filtering, request/token limits and per-client cost reporting. AKS/ACR/MCP are removed from the active Terraform root and deferred. Earlier AKS inventory and plan evidence below are historical; this milestone supersedes that sequence.
+
 **Scope priority:** [POC goal and success criteria](architecture/poc-success-criteria.md) govern implementation: Copilot Studio → APIM → internal MCP on AKS, with APIM model calls and per-client token/cost attribution. Copilot connectivity is core; only its additional VNet deployment is deferred from the initial network change. RAG and GPU inference remain later extensions.
 
 Azure subscription, Entra pipeline identity, remote state, and the initial Terraform resource-group deployment are complete. Power Platform/Copilot Studio setup and platform services remain pending. Keep resources short-lived and validate each layer before expanding scope.

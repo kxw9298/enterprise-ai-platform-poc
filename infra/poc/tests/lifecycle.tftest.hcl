@@ -6,9 +6,9 @@ mock_provider "azurerm" {
   }
 }
 variables {
+  jump_ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOUVMJ5Iza0gmpoUdWKVHi/NsDLUiCtrIW8q6yBsuEpo poc-jump"
   subscription_id     = "11111111-1111-1111-1111-111111111111"
   publisher_email     = "operator@example.com"
-  aks_admin_object_id = "22222222-2222-2222-2222-222222222222"
 }
 run "up_includes_platform" {
   command = plan
@@ -19,6 +19,17 @@ run "up_includes_platform" {
   assert {
     condition     = azurerm_resource_group.poc.name == "rg-ai-platform-poc"
     error_message = "The persistent resource group must keep its existing name."
+  }
+}
+run "private_access_and_cost_defaults" {
+  command = plan
+  assert {
+    condition     = module.platform[0].connection_details.apim_network_mode == "Internal" && module.platform[0].connection_details.bastion_sku == "Basic"
+    error_message = "APIM must stay internal and Bastion must not default to a premium tier."
+  }
+  assert {
+    condition     = module.platform[0].connection_details.region == "eastus" && !module.platform[0].connection_details.admin_egress_enabled
+    error_message = "Keep one region and no paid admin NAT gateway by default."
   }
 }
 run "down_retains_foundation" {

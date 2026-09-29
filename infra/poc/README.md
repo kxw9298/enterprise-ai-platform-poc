@@ -1,14 +1,18 @@
 # Disposable POC platform
 
+**Current first milestone:** [Foundry + internal APIM model gateway](../../docs/runbooks/model-gateway-first.md), with two secretless test-client IDs, content filtering, request/token limits and per-client cost reporting. AKS/ACR/MCP are removed from the active Terraform root and deferred. Earlier AKS inventory and plan evidence below are historical; this milestone supersedes that sequence.
+
 This root owns `rg-ai-platform-poc` and the optional platform module: AKS networking/runtime, ACR, APIM, Foundry/model/filter/project, identities/RBAC, Application Insights and Log Analytics. Bootstrap storage and pipeline identity remain outside Terraform ownership.
 
 `enable_platform=true` plans the platform. `enable_platform=false` removes the module while retaining the group and its bootstrap-managed Contributor assignment, allowing later recreation. Full `terraform destroy` also removes the group and is intended for final retirement.
 
 - Terraform `1.16.4`; AzureRM `5.7.0`; existing Azure Blob backend and OIDC/CLI authentication.
-- Required environment variables: `TF_VAR_subscription_id`, `TF_VAR_publisher_email`, `TF_VAR_aks_admin_object_id`.
+- Required environment variables: `TF_VAR_subscription_id`, `TF_VAR_publisher_email`, `TF_VAR_aks_admin_object_id`, `TF_VAR_jump_ssh_public_key` (public key only).
 - Default `aks_node_size=Standard_D2s_v7`; check quota/capacity before apply.
 - `allowed_client_ids=[]` denies all external MCP callers. Configure a real Entra API registration matching `api_audience` during application integration.
 - No automatic provider registration, permission escalation or application deployment.
 - No secret outputs. The remote state can contain sensitive provider-generated values; never commit it or saved plans.
 
 Read the [platform lifecycle runbook](../../docs/runbooks/platform-lifecycle.md) for inventory, access design, limits, costs, apply prerequisites and teardown. The [pipeline runbook](../../docs/runbooks/terraform-pipeline.md) describes reviewed-commit operations.
+
+Internal APIM/Bastion revision: prepared locally; new plan/push pending tool availability. Bastion Basic and a private Linux jump VM are removed with `down`. `enable_jump_egress=false` avoids a paid NAT gateway by default. `jump_vm_size` is separate from `aks_node_size`.

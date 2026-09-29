@@ -16,6 +16,8 @@
         <return-response><set-status code="400" reason="Initial accounting test requires non-streaming requests" /></return-response>
       </when>
     </choose>
+    <rate-limit-by-key calls="${requests_per_minute}" renewal-period="60" counter-key='@("model-requests:" + (string)context.Variables["clientId"])' />
+    <llm-token-limit counter-key='@("model-tokens:" + (string)context.Variables["clientId"])' tokens-per-minute="${tokens_per_minute}" token-quota="${daily_token_quota}" token-quota-period="Daily" estimate-prompt-tokens="false" />
     <llm-emit-token-metric namespace="POC.ModelUsage">
       <dimension name="ClientId" value='@((string)context.Variables["clientId"])' />
       <dimension name="Deployment" value="${deployment}" />

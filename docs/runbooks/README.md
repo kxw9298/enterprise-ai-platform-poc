@@ -1,5 +1,7 @@
 # Runbooks
 
+- [Model gateway first](model-gateway-first.md): current milestone, client setup, endpoint/safety/rate-limit tests and cost attribution.
+
 - [Bootstrap and cleanup](bootstrap.md): Azure CLI state storage, GitHub OIDC identity, initial RBAC, and teardown outside Terraform.
 - [GitHub Actions authentication](github-actions.md): repository variables and the manual Azure OIDC check.
 - [Platform lifecycle](platform-lifecycle.md): resource inventory, prerequisites, spin-up/down, token accounting and remaining integration work.

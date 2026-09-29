@@ -1,5 +1,7 @@
 # POC goal and success criteria
 
+**Current first milestone:** [Foundry + internal APIM model gateway](../runbooks/model-gateway-first.md), with two secretless test-client IDs, content filtering, request/token limits and per-client cost reporting. AKS/ACR/MCP are removed from the active Terraform root and deferred. Earlier AKS inventory and plan evidence below are historical; this milestone supersedes that sequence.
+
 The primary goal is to validate connectivity from a Copilot Studio agent to an internal MCP server hosted on AKS, use APIM as the AI gateway, and especially demonstrate token usage and cost attribution per client. Build only the simplified AI landing zone needed to support that test.
 
 This scope clarification takes precedence over earlier sequencing that treated Copilot integration as an optional late extension. A separate Copilot connection VNet remains deferred from the immediate AKS network change, but the supported Copilot-to-internal-MCP path must be validated early and completed within the core POC.

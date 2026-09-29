@@ -1,11 +1,17 @@
 # ADR 0003: Adapt the AI Landing Zone for an AKS runtime
 
+**Current first milestone:** [Foundry + internal APIM model gateway](../runbooks/model-gateway-first.md), with two secretless test-client IDs, content filtering, request/token limits and per-client cost reporting. AKS/ACR/MCP are removed from the active Terraform root and deferred. Earlier AKS inventory and plan evidence below are historical; this milestone supersedes that sequence.
+
 **Scope priority:** [POC goal and success criteria](../architecture/poc-success-criteria.md) govern implementation: Copilot Studio → APIM → internal MCP on AKS, with APIM model calls and per-client token/cost attribution. Copilot connectivity is core; only its additional VNet deployment is deferred from the initial network change. RAG and GPU inference remain later extensions.
 
 - **Date:** 2026-09-28
 - **Status:** Revised per user direction: one AKS VNet now; Copilot networking and RAG deferred; endpoint details remain proposed
 - **Scope:** Design and delivery plan only; no additional infrastructure deployed
 - **Extends:** [ADR 0001](0001-enterprise-ai-platform-architecture.md)
+
+## Latest access and cost refinement
+
+The user requested internal APIM with Bastion-based administrator testing, followed by a cost review favoring non-premium tiers and one region. The prepared local revision uses APIM Developer/Internal, exact gateway private DNS, Bastion Basic, and one private Linux jump VM in the same East US VNet. Admin NAT egress is optional and disabled by default. This supersedes the earlier suggestion to defer all Bastion/DNS infrastructure and the external APIM candidate. Copilot Studio still needs its own supported private connection; Bastion is only for operators. See [cost review](../architecture/cost-review.md) for rationale and pending validation. No cloud apply has occurred.
 
 ## Context and reference
 

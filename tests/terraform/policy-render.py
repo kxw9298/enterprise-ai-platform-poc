@@ -13,6 +13,9 @@ base = {
     "audience": "api://enterprise-ai-platform-poc",
     "client_ids": [],
     "deployment": "poc-chat",
+    "requests_per_minute": 10,
+    "tokens_per_minute": 1000,
+    "daily_token_quota": 10000,
 }
 with tempfile.TemporaryDirectory() as work:
     def render(name, clients):
@@ -30,6 +33,8 @@ with tempfile.TemporaryDirectory() as work:
     assert mcp.find("inbound/rewrite-uri").attrib["template"] == "/mcp"
     assert mcp.find("backend/forward-request").attrib["buffer-response"] == "false"
     model = render("model", trusted)
+    assert model.find("inbound/rate-limit-by-key").attrib["calls"] == "10"
+    assert model.find("inbound/llm-token-limit").attrib["token-quota"] == "10000"
     assert model.find("inbound/authentication-managed-identity") is not None
     assert model.find("inbound/llm-emit-token-metric/dimension").attrib["name"] == "ClientId"
     assert model.find("outbound/choose/when/trace/metadata[@name='usage']") is not None

@@ -40,8 +40,11 @@ module "platform" {
   suffix              = substr(sha256(var.subscription_id), 0, 8)
   tenant_id           = data.azurerm_client_config.current.tenant_id
   publisher_email     = var.publisher_email
-  aks_admin_object_id = var.aks_admin_object_id
   api_audience        = var.api_audience
-  allowed_client_ids  = var.allowed_client_ids
-  aks_node_size       = var.aks_node_size
+  jump_ssh_public_key = var.jump_ssh_public_key
+  jump_vm_size        = var.jump_vm_size
+  enable_jump_egress  = var.enable_jump_egress
+  requests_per_minute = var.requests_per_minute
+  tokens_per_minute   = var.tokens_per_minute
+  daily_token_quota   = var.daily_token_quota
 }

@@ -1,11 +1,11 @@
 # Terraform POC pipeline
 
-The [Terraform POC workflow](../../.github/workflows/terraform-poc.yml) manages the [foundation root](../../infra/poc/README.md). The root now includes the optional AKS/APIM/Foundry platform. See [platform lifecycle](platform-lifecycle.md) for the current resource inventory, prerequisites, and down/recreate procedure. The historical resource-group-only deployment evidence below predates this expansion.
+The [Terraform POC workflow](../../.github/workflows/terraform-poc.yml) manages the [foundation root](../../infra/poc/README.md). The root now includes the optional Foundry/internal-APIM platform. See [model gateway milestone](model-gateway-first.md) for the current resource inventory, prerequisites, and down/recreate procedure. The historical resource-group-only deployment evidence below predates this expansion.
 
 ## Prerequisites
 
 - [Bootstrap completed](bootstrap.md), including the backend and pipeline identity.
-- The six bootstrap variables plus `APIM_PUBLISHER_EMAIL` and `AKS_ADMIN_OBJECT_ID` configured; [GitHub OIDC check](github-actions.md) passing.
+- The six bootstrap variables plus `APIM_PUBLISHER_EMAIL`, `JUMP_SSH_PUBLIC_KEY`, and `MODEL_API_AUDIENCE` (required for working model authentication; a placeholder is sufficient for planning) configured; [GitHub OIDC check](github-actions.md) passing.
 - Access to manually run Actions on `main`.
 
 ## Plan, review, and apply

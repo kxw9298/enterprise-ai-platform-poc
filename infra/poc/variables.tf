@@ -23,37 +23,62 @@ variable "publisher_email" {
   }
 }
 
-variable "aks_admin_object_id" {
-  description = "Entra object ID of the operator granted AKS RBAC Cluster Admin."
-  type        = string
-  validation {
-    condition     = can(regex("^[a-fA-F0-9-]{36}$", var.aks_admin_object_id))
-    error_message = "Provide the administrator object UUID."
-  }
-}
-
 variable "api_audience" {
-  description = "Audience of the future Entra API registration; APIs deny all external clients until allowed below."
+  description = "Expected token audience for the Entra model API registration; configure before endpoint testing."
   type        = string
   default     = "api://enterprise-ai-platform-poc"
   validation {
-    condition     = can(regex("^api://[A-Za-z0-9._/-]+$", var.api_audience))
-    error_message = "Use an api:// application URI without XML metacharacters."
+    condition     = can(regex("^(api://[A-Za-z0-9._/-]+|[a-fA-F0-9-]{36})$", var.api_audience))
+    error_message = "Use the API application UUID for v2 tokens or its api:// URI for v1 tokens."
   }
 }
 
-variable "allowed_client_ids" {
-  description = "Explicit Entra application client IDs allowed to call MCP; empty means deny all."
-  type        = list(string)
-  default     = []
+variable "jump_ssh_public_key" {
+  description = "SSH public key for Bastion access to the jump VM. Never pass the private key."
+  type        = string
   validation {
-    condition     = alltrue([for id in var.allowed_client_ids : can(regex("^[a-fA-F0-9-]{36}$", id))])
-    error_message = "Client IDs must be UUIDs."
+    condition     = can(regex("^(ssh-ed25519|ssh-rsa) [A-Za-z0-9+/=]+", trimspace(var.jump_ssh_public_key)))
+    error_message = "Provide an OpenSSH public key, not a private key."
   }
 }
 
-variable "aks_node_size" {
-  description = "CPU system node SKU. Recheck subscription restrictions and core quota before apply."
+variable "jump_vm_size" {
+  description = "Independent admin VM size; use a smaller burstable SKU after checking subscription availability."
   type        = string
   default     = "Standard_D2s_v7"
+}
+variable "enable_jump_egress" {
+  description = "Optional paid NAT gateway for jump VM Internet access and package installation. Off for short internal-only tests."
+  type        = bool
+  default     = false
+}
+
+variable "requests_per_minute" {
+  type        = number
+  default     = 10
+  description = "Per authenticated client request rate."
+  validation {
+    condition     = var.requests_per_minute > 0 && floor(var.requests_per_minute) == var.requests_per_minute
+    error_message = "Use a positive integer."
+  }
+}
+
+variable "tokens_per_minute" {
+  type        = number
+  default     = 1000
+  description = "Per authenticated client prompt/completion token rate."
+  validation {
+    condition     = var.tokens_per_minute > 0 && floor(var.tokens_per_minute) == var.tokens_per_minute
+    error_message = "Use a positive integer."
+  }
+}
+
+variable "daily_token_quota" {
+  type        = number
+  default     = 10000
+  description = "Per authenticated client daily token quota; not an exact dollar cap."
+  validation {
+    condition     = var.daily_token_quota > 0 && floor(var.daily_token_quota) == var.daily_token_quota
+    error_message = "Use a positive integer."
+  }
 }

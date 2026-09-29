@@ -44,8 +44,9 @@ jobs:
       ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
       ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_jump_ssh_public_key: ${{ vars.JUMP_SSH_PUBLIC_KEY }}
       TF_VAR_publisher_email: ${{ vars.APIM_PUBLISHER_EMAIL }}
-      TF_VAR_aks_admin_object_id: ${{ vars.AKS_ADMIN_OBJECT_ID }}
+      TF_VAR_api_audience: ${{ vars.MODEL_API_AUDIENCE || 'api://enterprise-ai-platform-poc' }}
       TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       TF_STATE_STORAGE_ACCOUNT: ${{ vars.TF_STATE_STORAGE_ACCOUNT }}
       TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
@@ -75,7 +76,7 @@ jobs:
           if [[ "$OPERATION" == destroy || "$OPERATION" == down ]]; then
             [[ "$CONFIRM_DESTROY" == rg-ai-platform-poc ]] || { echo '::error::Explicit resource-group confirmation is required.'; exit 1; }
           fi
-          for name in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID TF_STATE_STORAGE_ACCOUNT TF_STATE_CONTAINER TF_STATE_KEY TF_VAR_publisher_email TF_VAR_aks_admin_object_id; do
+          for name in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID TF_STATE_STORAGE_ACCOUNT TF_STATE_CONTAINER TF_STATE_KEY TF_VAR_publisher_email TF_VAR_jump_ssh_public_key; do
             [[ -n "${!name}" ]] || { echo "::error::Missing configuration: $name"; exit 1; }
           done
           for name in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID; do
