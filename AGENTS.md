@@ -16,6 +16,14 @@ The eventual goal is Copilot Studio → APIM → internal MCP hosted on AKS, wit
 - Never commit secrets, tokens, private SSH keys, Terraform state, saved plans or local configuration. Tenant/subscription/client IDs are identifiers, not credentials.
 - Commit and push completed requested work when authorized; respect unrelated working-tree changes. Do not infer authorization to apply, grant access or destroy from a request to prepare or commit code.
 
+## Latest preference: API-key usage and cost attribution (deferred)
+
+The user wants usage and estimated cost tracked by **API key**, using a separate APIM subscription for each client/reporting unit. Attribute telemetry to the validated APIM subscription ID rather than logging raw subscription keys. Primary and secondary keys on the same subscription share attribution, preserving reporting through key rotation; separate reporting requires separate subscriptions.
+
+**Do not implement this change yet.** This is a recorded future requirement only. The current Terraform policies and tests use Entra client IDs; do not claim API-key attribution is already implemented or verified. When the user requests implementation, update subscription configuration, usage telemetry, estimated-cost queries and relevant per-client limits/tests together. Decide how subscription keys coexist with Entra authentication at that time; this preference alone does not authorize removing token validation.
+
+This preference supersedes older documents describing Entra client ID as the final reporting identifier. Cost remains an estimate derived from token usage and dated model prices, not an invoice split or an exact spending cap.
+
 ## Read next
 
 1. [Current milestone and test sequence](docs/runbooks/model-gateway-first.md) — authoritative current scope.
