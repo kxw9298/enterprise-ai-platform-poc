@@ -43,18 +43,18 @@ Prepared Terraform creates:
 
 No active AKS, ACR, MCP API, RAG or Copilot networking. Optional jump-VM NAT egress is disabled. GlobalStandard does not guarantee single-region inference processing. Both test identities share the trusted VM; this is attribution testing, not tenant isolation.
 
-Last known deployed state: bootstrap resource group/storage/container/OIDC app and role assignments, plus empty `rg-ai-platform-poc`. Terraform state tracks the workload resource group only. **The prepared Foundry/APIM platform has not been applied and no live model endpoint test has run.** Recheck Azure/state before acting; this snapshot can become stale.
+Last known deployed state: bootstrap resource group/storage/container/OIDC app and role assignments, plus empty `rg-ai-platform-poc`. Terraform state tracks the workload resource group only. **The Foundry/APIM platform apply is now running (36504873891); final resource state is not yet verified and no live model endpoint test has run.** Recheck Azure/state before acting; this snapshot can become stale.
 
 Validation completed:
 - Azure-backed local plan: **31 to add, 0 to change, 0 to destroy**, existing group unchanged; CI scope guard passed.
 - Terraform schema validation, three mocked lifecycle tests, rendered policy checks and plan-guard tests passed.
 - After restoring comments, Terraform validation passed again; comments do not activate resources.
-- GitHub Actions plan [36504225341](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36504225341) passed at `ac64c66`. Apply has not been dispatched.
+- GitHub Actions plan [36504225341](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36504225341) passed at `ac64c66`. A subsequent apply is running; see the latest provisioning attempt below.
 - A successful plan does not prove APIM policy runtime behavior, safety filtering, quota/capacity or live token accounting.
 
 ## Latest provisioning attempt
 
-The user authorized provisioning through GitHub Actions. Provider registration was requested and the plan passed. The user explicitly approved the previously blocked security changes. The secretless API registration, audience variable, conditioned RG delegation and subscription purge rights are now configured. Read [deployment checkpoint](docs/runbooks/deployment-checkpoint.md) for records and cleanup. All required providers are registered and regional/VM-family quota is sufficient for the two-vCPU jump VM. A fresh plan/apply is next.
+The user authorized provisioning through GitHub Actions. Provider registration was requested and the plan passed. The user explicitly approved the previously blocked security changes. The secretless API registration, audience variable, conditioned RG delegation and subscription purge rights are now configured. Read [deployment checkpoint](docs/runbooks/deployment-checkpoint.md) for records and cleanup. All required providers are registered and regional/VM-family quota is sufficient for the two-vCPU jump VM. The final plan passed with 31 additions at `d1cab08`. Apply [36504873891](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36504873891) passed preflight and entered provisioning. Check that run first; do not start a competing Terraform operation.
 
 ## Next work, in order
 

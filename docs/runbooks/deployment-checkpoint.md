@@ -1,6 +1,6 @@
 # Deployment checkpoint: 2026-09-28
 
-The user requested provisioning through GitHub Actions. The [plan run](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36504225341) succeeded at commit `ac64c66`. Apply has not been dispatched. No paid platform resources have been created by this attempt.
+The user requested provisioning through GitHub Actions. The [plan run](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36504225341) succeeded at commit `ac64c66`. That initial run was plan-only; see the current deployment status below.
 
 Registration was requested for Microsoft.Network, Microsoft.Compute, Microsoft.ApiManagement, Microsoft.OperationalInsights, Microsoft.Insights and Microsoft.ManagedIdentity. CognitiveServices was already registered. Recheck completion before apply.
 
@@ -23,3 +23,7 @@ Condition syntax reference: [Microsoft conditional role delegation examples](htt
 All seven required providers are registered. East US regional and StandardDsv7Family quotas each report four available vCPUs; the jump VM requests two. The secretless API registration and GitHub audience variable are configured, as are the conditioned RG delegation and subscription purge assignments. Azure rejected the old APIM action name; the supported permission is `Microsoft.ApiManagement/locations/deletedservices/delete`, now corrected in preflight.
 
 Records are in ignored `.local/deployment-prerequisites/`: `model-api.json`, `model-api-sp.json`, `delegation-definition.json`, `delegation-assignment.json`, `purge-definition.json`, and `purge-assignment.json`. On final retirement, after workload teardown and workflow shutdown, an authorized administrator can remove these exact assignments with `az role assignment delete --ids RECORDED_ID`, then the custom roles with `az role definition delete --name RECORDED_NAME_UUID`, then the API app with `az ad app delete --id RECORDED_APP_OBJECT_ID`. Verify each recorded identity and dependencies first. These records contain no client secret. Do not run cleanup while deployment is active.
+
+## Current deployment status
+
+The final audience-configured [plan 36504720981](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36504720981) passed at `d1cab08fb74c3ea0dfee4e476c63faa4bf18bb47`: 31 additions, no changes or deletions. User-authorized [apply 36504873891](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36504873891) passed OIDC login, validation, permission preflight and scope checks and entered the apply step. **Provisioning is in progress; completion and live endpoint tests are not yet verified.** Paid resources may now exist. Do not dispatch another Terraform operation while this run is active. Inspect this run before any continuation, then inspect state and repair only reported failures if needed.
