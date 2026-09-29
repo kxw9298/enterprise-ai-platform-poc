@@ -53,6 +53,8 @@ No active AKS, ACR, MCP API, RAG or Copilot networking. Optional jump-VM NAT egr
 
 Last known deployed state: bootstrap resource group/storage/container/OIDC app and role assignments, plus `rg-ai-platform-poc` and the 31 platform resources. Terraform state tracks the workload resource group only. **Apply [36504873891](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36504873891) completed 2026-09-29T01:18:19Z: 31 added, 0 changed, 0 destroyed.** All 31 resources were verified live and the endpoint passed its first authenticated call. No competing Terraform operation is in flight. Recheck Azure/state before acting; this snapshot can become stale.
 
+**Since superseded:** the platform was torn down on 2026-09-29 to stop billing. See [Teardown](#teardown-2026-09-29) below for what remains and what failed.
+
 Validation completed:
 - Azure-backed local plan: **31 to add, 0 to change, 0 to destroy**, existing group unchanged; CI scope guard passed.
 - Terraform schema validation, three mocked lifecycle tests, rendered policy checks and plan-guard tests passed.
@@ -80,7 +82,7 @@ Run from the Bastion jump VM as `pocadmin`. All values below are identifiers, no
 | Token accounting | 2 requests, 31 input / 25 output tokens, `MissingUsageRequests` 0 |
 | Cost query | `queries/model-cost-by-client.kql` returns that row from the live workspace |
 
-**Not yet verified:** client B, throttling (`429`), per-client limit isolation, token quota (`403`), `x-client-id` spoofing, streaming rejection, and a blocked-prompt safety case. These need the live stack; they were not run before teardown.
+**Not yet verified:** client B, throttling (`429`), per-client limit isolation, token quota (`403`), `x-client-id` spoofing, streaming rejection, and a blocked-prompt safety case. The stack was torn down before these ran, so each needs a recreated environment; do not report them as passing.
 
 ## Accessing the platform and testing the endpoint
 
@@ -130,6 +132,24 @@ Two findings that should **not** be "fixed":
 
 Working-copy hazard: `~/Workspace/enterprise-ai-platform-poc` is a second clone with no `.local/` and no pinned toolchain. Both roots derive identical resource names from `sha256(subscription_id)`, so running Terraform from the wrong copy targets the same Azure resources. Work in `~/Documents/ChatGPT/AI Platform POC`.
 
+## Teardown: 2026-09-29
+
+The user asked for teardown to stop costs, so the platform was removed with `down` (`enable_platform=false`), which retains the resource group and the bootstrap foundation. A `down-plan` was reviewed first: `0 to add, 0 to change, 31 to destroy`.
+
+**All billable resources are gone.** Verified after the fact: the Cognitive Services account list is empty, the APIM service is deleted, and Bastion, the jump VM, private DNS and the test identities are removed. The Foundry deployment and content filter were deleted too, so nothing is still accruing inference cost.
+
+`down` needed three runs, all of which failed the apply step on a transient or permission problem rather than on a plan error. Worth knowing, because each one looks alarming in the logs:
+
+1. `36511427631` — `deleting Api "model": 412 PreconditionFailed`. The API delete raced the concurrent logger/diagnostic deletes.
+2. `36512343080` — `deleting Service: 409 ServiceLocked ... transitioning at this time`, immediately after the API was deleted. Waiting for `provisioningState` to return to `Succeeded` cleared it.
+3. `36512593045` — the APIM service itself was deleted (about 13.5 minutes), then the **purge** step failed: `403 AuthorizationFailed` on `Microsoft.ApiManagement/locations/deletedServices/read`. This is a real role defect, not a transient one. The custom purge role grants the old subscription-scoped `Microsoft.ApiManagement/deletedservices/read`, and `preflight.sh` checked only the two `delete` actions. Both are now documented and `preflight.sh` checks all four read and delete actions. The role itself still needs an authorized administrator to correct; see [deployment checkpoint](docs/runbooks/deployment-checkpoint.md).
+
+A follow-up `down-plan` confirms **Terraform state is clean** for APIM and Foundry, so a later apply will not try to reconcile deleted resources.
+
+Still in `rg-ai-platform-poc`, all at **$0**: the VNet, the APIM network security group, the APIM subnet and its NSG association, plus an orphaned `Application Insights Smart Detection` action group left behind by the destroyed Application Insights component. They are cheap to keep and make the next apply faster, but `destroy` would remove the group itself. Deleting the API app registration, the custom roles and the bootstrap foundation are separate manual steps, documented in [bootstrap cleanup](docs/runbooks/bootstrap.md), and were not performed.
+
+Pending local cleanup: `~/Downloads/poc-jump.pem` is a browsable copy of the Bastion private key. The server-side key was removed with the VM; delete this file.
+
 ## Next work, in order
 
 1. Inspect `git status`, recent commits and the latest user request. Confirm actual Azure state and GitHub configuration without printing credentials.
@@ -139,7 +159,7 @@ Working-copy hazard: `~/Workspace/enterprise-ai-platform-poc` is a second clone 
 5. Run/review a fresh plan, preferably also through GitHub OIDC. Apply only within the user's authorization and the workflow's reviewed-commit controls.
 6. Client A is proven end to end. Still untested against a live stack: client B, `x-client-id` spoofing, rate/token limit enforcement and a blocked-prompt safety case. Run them from the Bastion jump VM as described above.
 7. `queries/model-cost-by-client.kql` now returns verified rows from the live workspace. Insert dated model prices to produce a cost estimate, and compare with backend telemetry. Estimates are not invoices; rate/token limits are not exact dollar caps. Record actual evidence, including failures and accounting gaps.
-8. Export needed evidence before authorized teardown. `down` removes platform resources but retains the foundation; `destroy` also removes the Terraform-managed workload group. Bootstrap and the API registration require separate cleanup. Stopping a VM does not stop APIM/Bastion billing.
+8. Teardown is complete for billable resources (see [Teardown](#teardown-2026-09-29)). If the milestone is resumed, `apply` recreates the platform; `destroy` would additionally remove the Terraform-managed workload group. The Entra API registration, the custom roles and the bootstrap foundation require separate cleanup. Stopping a VM does not stop APIM/Bastion billing.
 
 ## Files and validation commands
 

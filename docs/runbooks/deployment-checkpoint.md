@@ -22,6 +22,14 @@ Condition syntax reference: [Microsoft conditional role delegation examples](htt
 
 All seven required providers are registered. East US regional and StandardDsv7Family quotas each report four available vCPUs; the jump VM requests two. The secretless API registration and GitHub audience variable are configured, as are the conditioned RG delegation and subscription purge assignments. Azure rejected the old APIM action name; the supported permission is `Microsoft.ApiManagement/locations/deletedservices/delete`, now corrected in preflight.
 
+**Known defect, found 2026-09-29 during teardown.** The custom role `AI POC Deleted Service Purge` grants `Microsoft.ApiManagement/deletedservices/read`, the old subscription-scoped name, but Terraform's purge step calls `Microsoft.ApiManagement/locations/deletedServices/read`. The `down` run therefore destroyed the APIM service and then failed with `403 AuthorizationFailed` on the purge. `preflight.sh` did not catch it because it checked only the two `delete` actions and never the `read` actions. Fix before the next `down` or `destroy`:
+
+1. Add `Microsoft.ApiManagement/locations/deletedServices/read` to the role definition, and keep the existing Cognitive Services `deletedAccounts/read` (that one is already location-scoped).
+2. Re-assign the role; the definition change alone does not affect existing assignments.
+3. `preflight.sh` now checks all four read and delete actions, so it will fail early until the role is corrected.
+
+The role and assignment IDs are recorded in `.local/deployment-prerequisites/purge-definition.json` and `purge-assignment.json`. Granting the missing read is an RBAC change and needs explicit authorization.
+
 Records are in ignored `.local/deployment-prerequisites/`: `model-api.json`, `model-api-sp.json`, `delegation-definition.json`, `delegation-assignment.json`, `purge-definition.json`, and `purge-assignment.json`. On final retirement, after workload teardown and workflow shutdown, an authorized administrator can remove these exact assignments with `az role assignment delete --ids RECORDED_ID`, then the custom roles with `az role definition delete --name RECORDED_NAME_UUID`, then the API app with `az ad app delete --id RECORDED_APP_OBJECT_ID`. Verify each recorded identity and dependencies first. These records contain no client secret. Do not run cleanup while deployment is active.
 
 ## Current deployment status

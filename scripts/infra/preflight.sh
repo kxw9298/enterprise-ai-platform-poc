@@ -24,8 +24,12 @@ if ! jq -e '
   failures=$((failures + 1))
 fi
 # Purge is configured for repeatable name reuse and is outside RG-level grants.
+# Terraform's purge step needs both read and delete on the soft-deleted resources.
+# Checking delete alone is not enough: a role granting only delete, or granting
+# read at the old subscription-scoped name, passes this check and then fails the
+# apply with 403 on '<resource>/locations/<resource>/read'.
 subscription_permissions=$(az rest --method get --url "https://management.azure.com/subscriptions/$subscription/providers/Microsoft.Authorization/permissions?api-version=2022-04-01" -o json)
-for action in microsoft.apimanagement/locations/deletedservices/delete microsoft.cognitiveservices/locations/resourcegroups/deletedaccounts/delete; do
+for action in microsoft.apimanagement/locations/deletedservices/read microsoft.apimanagement/locations/deletedservices/delete microsoft.cognitiveservices/locations/resourcegroups/deletedaccounts/read microsoft.cognitiveservices/locations/resourcegroups/deletedaccounts/delete; do
   if ! jq -e --arg action "$action" '
     def matches($action): ascii_downcase as $p | $action | test("^" + ($p | split("*") | map(gsub("[.]"; "\\.")) | join(".*")) + "$");
     any(.value[]; any(.actions[]; matches($action)) and (any(.notActions[]?; matches($action)) | not))
