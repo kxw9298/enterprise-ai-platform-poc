@@ -1,16 +1,20 @@
-// Application Insights Logs schema. Set dated prices for your deployed model.
+// Log Analytics workspace schema (AppTraces). Set dated prices for your deployed model.
 // Defaults intentionally null: absent prices produce null cost, never false $0.
+// The APIM trace stores its dimensions as a JSON blob in the Properties column.
+// The Application Insights portal Logs blade instead presents this same data as
+// `traces`/`customDimensions`; use that form there, not this one.
 let InputUSDPerMillion = real(null);
 let CachedInputUSDPerMillion = real(null);
 let OutputUSDPerMillion = real(null);
-traces
-| where timestamp > ago(24h) and message == "Model usage"
-| extend ClientId=tostring(customDimensions.client_id), RequestId=tostring(customDimensions.request_id),
-         Deployment=tostring(customDimensions.deployment), Model=tostring(customDimensions.model),
-         ModelVersion=tostring(customDimensions.model_version), Usage=parse_json(tostring(customDimensions.usage))
+AppTraces
+| where TimeGenerated > ago(24h) and Message == "Model usage"
+| extend P = parse_json(Properties)
+| extend ClientId=tostring(P.client_id), RequestId=tostring(P.request_id),
+         Deployment=tostring(P.deployment), Model=tostring(P.model),
+         ModelVersion=tostring(P.model_version), Usage=parse_json(tostring(P.usage))
 | where isnotempty(RequestId)
 // Deduplicate repeated telemetry, not actual separate model requests.
-| summarize arg_max(timestamp, *) by RequestId
+| summarize arg_max(TimeGenerated, *) by RequestId
 | extend InputTokens=tolong(Usage.prompt_tokens), OutputTokens=tolong(Usage.completion_tokens),
          CachedTokens=coalesce(tolong(Usage.prompt_tokens_details.cached_tokens), 0)
 | extend MissingUsage=isnull(InputTokens) or isnull(OutputTokens)

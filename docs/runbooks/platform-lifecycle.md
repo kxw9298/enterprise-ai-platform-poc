@@ -35,7 +35,7 @@ Read-only checks on 2026-09-28 found:
 - Multiple required resource providers were unregistered. None was registered by this planning task.
 - The GitHub identity has Contributor on the POC group, which cannot manage the new workload role assignments or subscription-scoped deleted-service purges. No additional privileges have been granted.
 
-Run `scripts/infra/preflight.sh` using the intended apply identity. It checks registrations and effective permission actions without changing anything. Conditional RBAC constraints, quota and name availability still need independent verification. Required providers are Network, Compute, ContainerService, ContainerRegistry, ApiManagement, CognitiveServices, OperationalInsights, Insights and ManagedIdentity.
+Run `scripts/infra/preflight.sh` using the intended apply identity. It checks registrations and effective permission actions without changing anything. Conditional RBAC constraints, quota and name availability still need independent verification. The seven required providers, as enforced by that script, are Network, Compute, ApiManagement, CognitiveServices, OperationalInsights, Insights and ManagedIdentity. `ContainerService` and `ContainerRegistry` are **not** checked and not required: they belong to the deferred AKS/ACR milestone, which is commented out of the active root.
 
 Before apply, an administrator must register missing providers and either run Terraform locally with sufficient permissions or explicitly design scoped RBAC/purge delegation for GitHub. The workflow runs preflight before apply/down/destroy and fails before deployment if these basic prerequisites are missing. Do not grant subscription Owner to the pipeline merely to bypass the check.
 

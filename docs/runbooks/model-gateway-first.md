@@ -43,8 +43,8 @@ The test identities receive no direct Foundry permission. APIM alone receives th
 ## Test sequence after apply
 
 1. Complete provider registration, scoped role/purge permissions and compute quota checks. Apply a reviewed Terraform plan. Configure the API audience as above and replan before applying that configuration change.
-2. Connect through Bastion to the jump VM. Confirm the APIM hostname resolves to its private IP. A request without a valid token must fail.
-3. Copy the small [test script](../../scripts/model-gateway/test-endpoint.py) to the VM through the trusted admin session. Run it with each client identity:
+2. Connect through Bastion to the jump VM as `pocadmin`. Bastion is Basic, so use the VM's **Connect → Bastion** page, **SSH**, auth type **Private Key** (not password, not Entra ID). `az network bastion tunnel` fails by design and there is no `scp`. The key is `.local/ssh/poc-jump`; the browser file picker hides dotfiles, so copy it to a visible path first and delete that copy afterwards. Confirm the APIM hostname resolves to its private IP. A request without a valid token must fail.
+3. The [test script](../../scripts/model-gateway/test-endpoint.py) **cannot be copied to the VM as previously written**: Bastion Basic offers no `scp`, and the jump VM has no Internet egress and no `curl`, so it cannot download the file either. IMDS *is* reachable over the VNet, so for a first smoke test mint the token and call the API inline with `python3`; a working command is recorded in [AGENTS.md](../../AGENTS.md#accessing-the-platform-and-testing-the-endpoint). The script stays the canonical reference and is still the right tool for throttling via `--requests 12` once the file can be transferred:
 
 ```bash
 python3 test-endpoint.py --gateway https://APIM_NAME.azure-api.net \
@@ -63,7 +63,15 @@ The initial model API rejects streaming to keep token accounting explicit. Limit
 
 ## Current verification
 
-Terraform schema validation and three mocked lifecycle tests passed locally. Model policy template rendering checks verify authentication, token telemetry and both rate-limit policies. No API registration, model deployment or authenticated endpoint call has been executed for this milestone yet. The local Azure-backed plan on 2026-09-28 passed the scope guard: **31 to add, 0 to change, 0 to destroy**, with the existing resource group unchanged. Saved plans remain local and ignored. The older 37-resource AKS plan is historical.
+Terraform schema validation and three mocked lifecycle tests passed locally. Model policy template rendering checks verify authentication, token telemetry and both rate-limit policies. The local Azure-backed plan on 2026-09-28 passed the scope guard: **31 to add, 0 to change, 0 to destroy**, with the existing resource group unchanged. Saved plans remain local and ignored. The older 37-resource AKS plan is historical.
+
+That plan was then applied. [Apply 36504873891](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36504873891) completed 2026-09-29T01:18:19Z with 31 added, 0 changed, 0 destroyed, and all 31 resources were verified live.
+
+Runtime-tested on 2026-09-28 from the Bastion jump VM: private DNS resolution, a rejected no-token request (`401`), two authenticated client-A calls (`200`), `hello` content from `gpt-4.1-mini-2025-04-14`, content-filter metadata present for all four categories, `client_id` attribution on every trace, and token accounting at 31 input / 25 output tokens with `MissingUsageRequests` of 0. The single `AppExceptions` row is the deliberate 401 test, not a fault. The cost query returns that row from the live workspace.
+
+**Still unverified against a live stack:** client B, `x-client-id` spoofing, request/token limit enforcement, and a blocked-prompt safety case. Do not report these as passing on the strength of the plan or the rendered policy templates.
+
+`buffer-response="false"` in the model policy is **not** a defect: the outbound `context.Response.Body` read succeeds and usage arrived fully populated on every live call. It should not be changed without a failing test.
 
 ## References
 

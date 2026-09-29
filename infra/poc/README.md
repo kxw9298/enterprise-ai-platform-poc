@@ -7,12 +7,12 @@ This root owns `rg-ai-platform-poc` and the optional platform module: AKS networ
 `enable_platform=true` plans the platform. `enable_platform=false` removes the module while retaining the group and its bootstrap-managed Contributor assignment, allowing later recreation. Full `terraform destroy` also removes the group and is intended for final retirement.
 
 - Terraform `1.16.4`; AzureRM `5.7.0`; existing Azure Blob backend and OIDC/CLI authentication.
-- Required environment variables: `TF_VAR_subscription_id`, `TF_VAR_publisher_email`, `TF_VAR_aks_admin_object_id`, `TF_VAR_jump_ssh_public_key` (public key only).
-- Default `aks_node_size=Standard_D2s_v7`; check quota/capacity before apply.
+- Required environment variables: `TF_VAR_subscription_id`, `TF_VAR_publisher_email`, `TF_VAR_api_audience`, `TF_VAR_jump_ssh_public_key` (public key only). `TF_VAR_aks_admin_object_id` is commented out in `variables.tf` and is **not** required.
+- Default `aks_node_size=Standard_D2s_v7`; inactive while AKS is deferred. Check quota/capacity before re-enabling that milestone.
 - `allowed_client_ids=[]` denies all external MCP callers. Configure a real Entra API registration matching `api_audience` during application integration.
 - No automatic provider registration, permission escalation or application deployment.
 - No secret outputs. The remote state can contain sensitive provider-generated values; never commit it or saved plans.
 
 Read the [platform lifecycle runbook](../../docs/runbooks/platform-lifecycle.md) for inventory, access design, limits, costs, apply prerequisites and teardown. The [pipeline runbook](../../docs/runbooks/terraform-pipeline.md) describes reviewed-commit operations.
 
-Internal APIM/Bastion revision: prepared locally; new plan/push pending tool availability. Bastion Basic and a private Linux jump VM are removed with `down`. `enable_jump_egress=false` avoids a paid NAT gateway by default. `jump_vm_size` is separate from `aks_node_size`.
+Internal APIM/Bastion revision applied 2026-09-29T01:18:19Z (Actions run `36504873891`, 31 added, 0 changed, 0 destroyed) and the model endpoint was runtime-tested from the Bastion jump VM on 2026-09-28. Bastion Basic and a private Linux jump VM are removed with `down`. `enable_jump_egress=false` avoids a paid NAT gateway by default. `jump_vm_size` is separate from `aks_node_size`.

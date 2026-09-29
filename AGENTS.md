@@ -51,18 +51,84 @@ Prepared Terraform creates:
 
 No active AKS, ACR, MCP API, RAG or Copilot networking. Optional jump-VM NAT egress is disabled. GlobalStandard does not guarantee single-region inference processing. Both test identities share the trusted VM; this is attribution testing, not tenant isolation.
 
-Last known deployed state: bootstrap resource group/storage/container/OIDC app and role assignments, plus empty `rg-ai-platform-poc`. Terraform state tracks the workload resource group only. **The Foundry/APIM platform apply is now running (36504873891); final resource state is not yet verified and no live model endpoint test has run.** Recheck Azure/state before acting; this snapshot can become stale.
+Last known deployed state: bootstrap resource group/storage/container/OIDC app and role assignments, plus `rg-ai-platform-poc` and the 31 platform resources. Terraform state tracks the workload resource group only. **Apply [36504873891](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36504873891) completed 2026-09-29T01:18:19Z: 31 added, 0 changed, 0 destroyed.** All 31 resources were verified live and the endpoint passed its first authenticated call. No competing Terraform operation is in flight. Recheck Azure/state before acting; this snapshot can become stale.
 
 Validation completed:
 - Azure-backed local plan: **31 to add, 0 to change, 0 to destroy**, existing group unchanged; CI scope guard passed.
 - Terraform schema validation, three mocked lifecycle tests, rendered policy checks and plan-guard tests passed.
 - After restoring comments, Terraform validation passed again; comments do not activate resources.
-- GitHub Actions plan [36504225341](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36504225341) passed at `ac64c66`. A subsequent apply is running; see the latest provisioning attempt below.
+- GitHub Actions plan [36504225341](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36504225341) passed at `ac64c66`. The apply that followed completed successfully; see the provisioning attempt below.
 - A successful plan does not prove APIM policy runtime behavior, safety filtering, quota/capacity or live token accounting.
 
-## Latest provisioning attempt
+## Latest provisioning attempt (completed)
 
-The user authorized provisioning through GitHub Actions. Provider registration was requested and the plan passed. The user explicitly approved the previously blocked security changes. The secretless API registration, audience variable, conditioned RG delegation and subscription purge rights are now configured. Read [deployment checkpoint](docs/runbooks/deployment-checkpoint.md) for records and cleanup. All required providers are registered and regional/VM-family quota is sufficient for the two-vCPU jump VM. The final plan passed with 31 additions at `d1cab08`. Apply [36504873891](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36504873891) passed preflight and entered provisioning. Check that run first; do not start a competing Terraform operation.
+The user authorized provisioning through GitHub Actions. Provider registration was requested and the plan passed. The user explicitly approved the previously blocked security changes. The secretless API registration, audience variable, conditioned RG delegation and subscription purge rights are now configured. Read [deployment checkpoint](docs/runbooks/deployment-checkpoint.md) for records and cleanup. All required providers are registered and regional/VM-family quota is sufficient for the two-vCPU jump VM. The final plan passed with 31 additions at `d1cab08`. Apply [36504873891](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36504873891) passed preflight and **completed 2026-09-29T01:18:19Z: 31 added, 0 changed, 0 destroyed.** That run is finished; do not start a competing Terraform operation against the same state.
+
+## Live endpoint verification (2026-09-28)
+
+Run from the Bastion jump VM as `pocadmin`. All values below are identifiers, not secrets.
+
+| Check | Result |
+| --- | --- |
+| Private DNS resolution | `apim-aipoc-247fda1b.azure-api.net` → `10.42.4.4` |
+| Request without a token | `401`, `AppRequests.Success` false |
+| `AppExceptions` entry | `TokenNotPresent at validate-azure-ad-token` — that deliberate 401 test, not a fault |
+| Authenticated call, client A | `200` twice, 2463 ms then 851 ms |
+| Response | content `hello`, model `gpt-4.1-mini-2025-04-14` |
+| Content safety | hate/self-harm/sexual/violence all `safe`; `prompt_filter_results` and `content_filter_results` both present |
+| Per-client attribution | `client_id` = client A on every `Model usage` trace |
+| Token accounting | 2 requests, 31 input / 25 output tokens, `MissingUsageRequests` 0 |
+| Cost query | `queries/model-cost-by-client.kql` returns that row from the live workspace |
+
+**Not yet verified:** client B, throttling (`429`), per-client limit isolation, token quota (`403`), `x-client-id` spoofing, streaming rejection, and a blocked-prompt safety case. These need the live stack; they were not run before teardown.
+
+## Accessing the platform and testing the endpoint
+
+Bastion is Basic, so access is a browser session and there is no native client path.
+
+- `az network bastion tunnel` fails by design with `Bastion Host SKU must be Standard or Premium and Native Client must be enabled`. There is no `scp` either. Use the VM's **Connect → Bastion** page, **SSH**, auth type **Private Key** (not password, not Entra ID), user `pocadmin`.
+- The key is `.local/ssh/poc-jump`. The browser file picker hides dotfiles, so copy it somewhere visible first (for example `~/Downloads/`), paste that path, and delete the copy afterwards. It is a real private key; never print or commit it.
+- The jump VM has no Internet egress (`enable_jump_egress=false`, no NAT gateway) and no `curl`, so the test script cannot be downloaded there. IMDS *is* reachable over the VNet, so mint the token inline. `scripts/model-gateway/test-endpoint.py` stays the canonical reference; its `--requests 12` is how throttling should be exercised once it can be transferred.
+
+Verified smoke test — substitute the client-B UUID for the second identity:
+
+```bash
+APPID=5c73597b-43b3-4742-bc3a-fc237089733e
+AUD=api://105fe078-6b68-4bd9-844c-aa4c2a0f80b8
+HOST=https://apim-aipoc-247fda1b.azure-api.net
+python3 - "$APPID" "$AUD" "$HOST" <<'PY'
+import json, sys, urllib.request, urllib.error
+appid, aud, host = sys.argv[1:4]
+tok = json.load(urllib.request.urlopen(urllib.request.Request(
+    "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=" + aud,
+    headers={"Metadata": "true"})))["access_token"]
+body = json.dumps({"messages": [{"role": "user", "content": "Reply with the word hello."}],
+                   "max_tokens": 16, "stream": False}).encode()
+req = urllib.request.Request(host + "/models/chat/completions", data=body, headers={
+    "Authorization": "Bearer " + tok, "Content-Type": "application/json",
+    "x-client-id": "spoofed-value"})
+try:
+    r = urllib.request.urlopen(req)
+    print("HTTP", r.status); print(r.read().decode())
+except urllib.error.HTTPError as e:
+    print("HTTP", e.code); print(e.read().decode())
+PY
+```
+
+The `x-client-id` value is deliberately wrong. The model policy uses `exists-action="override"`, so APIM must replace it and the trace must still show the real client UUID.
+
+Reading telemetry (from a machine with `az` signed in, not from the jump VM):
+
+- **Allow 2 to 6 minutes for ingestion.** A zero-row check at 190 seconds is not evidence of failure; retry before investigating.
+- Expect one `401` plus the successful `200`s in `AppRequests`, and one `Model usage` row per successful call in `AppTraces`.
+- `queries/model-cost-by-client.kql` uses the Log Analytics schema (`AppTraces`, `TimeGenerated`, `parse_json(Properties)`). The Application Insights portal Logs blade presents the same data as `traces`/`customDimensions` and needs that form instead.
+
+Two findings that should **not** be "fixed":
+
+- `buffer-response="false"` in `infra/modules/platform/policies/model.xml.tftpl` is correct and working. The worry that `context.Response.Body` fails on an unbuffered response is disproven: token usage arrived fully populated on every live call (14 and 42 total tokens). Do not change it without a failing test.
+- Telemetry shows `model_version` as `2025-04-14T00:00:00.0000000Z`, not the `2025-04-14` literal in the policy. APIM normalises it from the backend; that is expected, not drift.
+
+Working-copy hazard: `~/Workspace/enterprise-ai-platform-poc` is a second clone with no `.local/` and no pinned toolchain. Both roots derive identical resource names from `sha256(subscription_id)`, so running Terraform from the wrong copy targets the same Azure resources. Work in `~/Documents/ChatGPT/AI Platform POC`.
 
 ## Next work, in order
 
@@ -71,8 +137,8 @@ The user authorized provisioning through GitHub Actions. Provider registration w
 3. Set the real API audience: for the documented v2 configuration, `TF_VAR_api_audience` / GitHub `MODEL_API_AUDIENCE` is the app UUID; the managed-identity token request resource is `api://APP_UUID`. The current placeholder is for planning only and cannot enable working authentication.
 4. Resolve deployment prerequisites: provider registration, scoped pipeline role-assignment permissions, subscription deleted-service purge permissions, compute quota/capacity and current regional costs. `scripts/infra/preflight.sh` is read-only. The approved conditioned workload role-assignment delegation and subscription purge rights are now configured; do not grant broad Owner access.
 5. Run/review a fresh plan, preferably also through GitHub OIDC. Apply only within the user's authorization and the workflow's reviewed-commit controls.
-6. From the Bastion jump VM, test both client IDs with `scripts/model-gateway/test-endpoint.py`; verify missing/unauthorized tokens fail, identity-header spoofing cannot change attribution, safety filters work and rate/token limits enforce expected responses.
-7. Query per-client usage with `queries/model-cost-by-client.kql`, insert dated model prices, and compare with available backend telemetry. Estimates are not invoices; rate/token limits are not exact dollar caps. Record actual evidence, including failures and accounting gaps.
+6. Client A is proven end to end. Still untested against a live stack: client B, `x-client-id` spoofing, rate/token limit enforcement and a blocked-prompt safety case. Run them from the Bastion jump VM as described above.
+7. `queries/model-cost-by-client.kql` now returns verified rows from the live workspace. Insert dated model prices to produce a cost estimate, and compare with backend telemetry. Estimates are not invoices; rate/token limits are not exact dollar caps. Record actual evidence, including failures and accounting gaps.
 8. Export needed evidence before authorized teardown. `down` removes platform resources but retains the foundation; `destroy` also removes the Terraform-managed workload group. Bootstrap and the API registration require separate cleanup. Stopping a VM does not stop APIM/Bastion billing.
 
 ## Files and validation commands
