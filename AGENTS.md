@@ -54,14 +54,14 @@ Validation completed:
 
 ## Latest provisioning attempt
 
-The user authorized provisioning through GitHub Actions. Provider registration was requested and the plan passed. Automatic approval review blocked the Entra API registration and persistent RBAC prerequisite changes pending explicit approval of their scopes. No rejected security operation ran. Read [deployment checkpoint](docs/runbooks/deployment-checkpoint.md) for the exact approval needed; do not bypass the rejection.
+The user authorized provisioning through GitHub Actions. Provider registration was requested and the plan passed. The user explicitly approved the previously blocked security changes. The secretless API registration, audience variable, conditioned RG delegation and subscription purge rights are now configured. Read [deployment checkpoint](docs/runbooks/deployment-checkpoint.md) for records and cleanup. All required providers are registered and regional/VM-family quota is sufficient for the two-vCPU jump VM. A fresh plan/apply is next.
 
 ## Next work, in order
 
 1. Inspect `git status`, recent commits and the latest user request. Confirm actual Azure state and GitHub configuration without printing credentials.
 2. Configure the one-time Entra API app registration when authorized, following the milestone runbook. Check for an existing app first to avoid duplicates. No client secret is needed. It is separate from the GitHub OIDC application and persists outside Terraform; cleanup is documented.
 3. Set the real API audience: for the documented v2 configuration, `TF_VAR_api_audience` / GitHub `MODEL_API_AUDIENCE` is the app UUID; the managed-identity token request resource is `api://APP_UUID`. The current placeholder is for planning only and cannot enable working authentication.
-4. Resolve deployment prerequisites: provider registration, scoped pipeline role-assignment permissions, subscription deleted-service purge permissions, compute quota/capacity and current regional costs. `scripts/infra/preflight.sh` is read-only. The pipeline currently lacks required workload role-assignment and purge rights; do not silently grant broad Owner access.
+4. Resolve deployment prerequisites: provider registration, scoped pipeline role-assignment permissions, subscription deleted-service purge permissions, compute quota/capacity and current regional costs. `scripts/infra/preflight.sh` is read-only. The approved conditioned workload role-assignment delegation and subscription purge rights are now configured; do not grant broad Owner access.
 5. Run/review a fresh plan, preferably also through GitHub OIDC. Apply only within the user's authorization and the workflow's reviewed-commit controls.
 6. From the Bastion jump VM, test both client IDs with `scripts/model-gateway/test-endpoint.py`; verify missing/unauthorized tokens fail, identity-header spoofing cannot change attribution, safety filters work and rate/token limits enforce expected responses.
 7. Query per-client usage with `queries/model-cost-by-client.kql`, insert dated model prices, and compare with available backend telemetry. Estimates are not invoices; rate/token limits are not exact dollar caps. Record actual evidence, including failures and accounting gaps.
@@ -96,7 +96,7 @@ Ignored machine-local files (not available to an agent on a fresh checkout):
 - `.local/plans/` and local logs: never commit/upload saved plans or state.
 - `.local/model-api/`: intended record of API registration setup; its presence is not proof setup succeeded.
 
-GitHub configuration at checkpoint includes bootstrap variables, publisher email and jump public key. The real `MODEL_API_AUDIENCE` has not been configured. An obsolete AKS admin variable may still exist but is unused. Discover IDs through authorized local configuration/GitHub variables rather than requiring secrets in this file.
+GitHub configuration at checkpoint includes bootstrap variables, publisher email and jump public key. The real `MODEL_API_AUDIENCE` is now configured. An obsolete AKS admin variable may still exist but is unused. Discover IDs through authorized local configuration/GitHub variables rather than requiring secrets in this file.
 
 ## Handoff discipline
 

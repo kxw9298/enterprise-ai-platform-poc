@@ -25,7 +25,7 @@ if ! jq -e '
 fi
 # Purge is configured for repeatable name reuse and is outside RG-level grants.
 subscription_permissions=$(az rest --method get --url "https://management.azure.com/subscriptions/$subscription/providers/Microsoft.Authorization/permissions?api-version=2022-04-01" -o json)
-for action in microsoft.apimanagement/deletedservices/delete microsoft.cognitiveservices/locations/resourcegroups/deletedaccounts/delete; do
+for action in microsoft.apimanagement/locations/deletedservices/delete microsoft.cognitiveservices/locations/resourcegroups/deletedaccounts/delete; do
   if ! jq -e --arg action "$action" '
     def matches($action): ascii_downcase as $p | $action | test("^" + ($p | split("*") | map(gsub("[.]"; "\\.")) | join(".*")) + "$");
     any(.value[]; any(.actions[]; matches($action)) and (any(.notActions[]?; matches($action)) | not))
