@@ -195,3 +195,9 @@ GitHub configuration at checkpoint includes bootstrap variables, publisher email
 ## Handoff discipline
 
 Before ending a session, update this checkpoint when scope or state changes. Record completed commits, validation results, pending prerequisites and the exact next action. Clearly separate prepared code, planned resources, deployed resources and runtime-tested behavior. Never fabricate success when a tool is blocked by rate limits or permissions; leave a precise continuation note. An agent on another machine needs its own authorized login and local setup—this file transfers context, not credentials or execution state.
+
+## Power Platform next milestone (2026-09-29)
+
+User confirmed environment `Default-eb241c67-e72d-4862-ae41-7686706624c4`, United States, Default type, and Managed Environments enabled after adding Dataverse/trial signup. Uses Standard agent `MCP Test Agent`; account has Power Automate Free and Copilot Studio Viral Trial. Publishing is unavailable; target is test-panel private MCP connectivity.
+
+Prepared `infra/power-platform` as a separate persistent network foundation: two regional VNets/subnets and an enterprise policy, separate `power-platform.tfstate`. Nothing deployed or linked. Read its README for scope, permissions and teardown. Workload peering/private DNS, dedicated workflow and environment association remain to be implemented before a live test. This integration requires East US and West US; the one-region preference continues to apply to paid workload services. Do not re-enable AKS/MCP or implement API-key reporting incidentally.
