@@ -1,6 +1,6 @@
 # First milestone: Foundry model through internal APIM
 
-This is the active first milestone. AKS, ACR, MCP, RAG, Copilot networking and self-hosted inference are deferred. The longer-term Copilot → internal MCP objective remains, but it is not a prerequisite for testing model governance.
+This is the active first milestone. AKS, ACR, MCP, RAG, Copilot networking and self-hosted inference are deferred. The AKS/ACR resources, MCP gateway, subnet and related inputs/outputs are retained as commented-out Terraform for later reuse; they do not participate in the active plan. Restore them together and update the CI resource allowlist, provider preflight and client authorization before enabling that milestone. The longer-term Copilot → internal MCP objective remains, but it is not a prerequisite for testing model governance.
 
 ## What Terraform prepares
 

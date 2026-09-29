@@ -82,3 +82,29 @@ variable "daily_token_quota" {
     error_message = "Use a positive integer."
   }
 }
+
+# Deferred: enable with the AKS/MCP milestone, then review and run a new plan.
+# variable "aks_admin_object_id" {
+#   description = "Entra object ID of the operator granted AKS RBAC Cluster Admin."
+#   type        = string
+#   validation {
+#     condition     = can(regex("^[a-fA-F0-9-]{36}$", var.aks_admin_object_id))
+#     error_message = "Provide the administrator object UUID."
+#   }
+# }
+#
+# variable "allowed_client_ids" {
+#   description = "Explicit Entra application client IDs allowed to call MCP; empty means deny all."
+#   type        = list(string)
+#   default     = []
+#   validation {
+#     condition     = alltrue([for id in var.allowed_client_ids : can(regex("^[a-fA-F0-9-]{36}$", id))])
+#     error_message = "Client IDs must be UUIDs."
+#   }
+# }
+#
+# variable "aks_node_size" {
+#   description = "CPU system node SKU. Recheck subscription restrictions and core quota before apply."
+#   type        = string
+#   default     = "Standard_D2s_v7"
+# }

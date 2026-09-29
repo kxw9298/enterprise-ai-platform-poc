@@ -40,6 +40,10 @@ module "platform" {
   suffix              = substr(sha256(var.subscription_id), 0, 8)
   tenant_id           = data.azurerm_client_config.current.tenant_id
   publisher_email     = var.publisher_email
+  # Deferred AKS/MCP inputs: restore with the commented module resources.
+  # aks_admin_object_id = var.aks_admin_object_id
+  # allowed_client_ids  = var.allowed_client_ids
+  # aks_node_size       = var.aks_node_size
   api_audience        = var.api_audience
   jump_ssh_public_key = var.jump_ssh_public_key
   jump_vm_size        = var.jump_vm_size

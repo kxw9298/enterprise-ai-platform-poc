@@ -58,3 +58,11 @@ resource "azurerm_subnet_network_security_group_association" "apim" {
   subnet_id                 = azurerm_subnet.apim.id
   network_security_group_id = azurerm_network_security_group.apim.id
 }
+
+# Deferred: enable with the AKS/MCP milestone, then review and run a new plan.
+# resource "azurerm_subnet" "aks" {
+#   name                 = "snet-aks"
+#   resource_group_name  = var.resource_group_name
+#   virtual_network_name = azurerm_virtual_network.poc.name
+#   address_prefixes     = ["10.42.0.0/22"]
+# }

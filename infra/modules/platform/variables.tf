@@ -29,3 +29,9 @@ variable "enable_jump_egress" { type = bool }
 variable "requests_per_minute" { type = number }
 variable "tokens_per_minute" { type = number }
 variable "daily_token_quota" { type = number }
+
+# Deferred: enable with the AKS/MCP milestone, then review and run a new plan.
+# variable "aks_admin_object_id" { type = string }
+# variable "allowed_client_ids" { type = list(string) }
+# variable "aks_node_size" { type = string }
+# locals { mcp_ip = "10.42.0.10" }

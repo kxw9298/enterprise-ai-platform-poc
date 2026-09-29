@@ -91,3 +91,40 @@ resource "azurerm_api_management_api_diagnostic" "poc" {
   backend_request { body_bytes = 0 }
   backend_response { body_bytes = 0 }
 }
+
+# Deferred: enable with the AKS/MCP milestone, then review and run a new plan.
+# resource "azurerm_api_management_api" "mcp" {
+#   name                  = "mcp"
+#   api_management_name   = azurerm_api_management.poc.name
+#   resource_group_name   = var.resource_group_name
+#   revision              = "1"
+#   display_name          = "Internal AKS MCP"
+#   path                  = "mcp"
+#   protocols             = ["https"]
+#   subscription_required = false
+#   service_url           = "http://${local.mcp_ip}:8080"
+# }
+# resource "azurerm_api_management_api_operation" "mcp" {
+#   for_each            = toset(["GET", "POST", "DELETE"])
+#   operation_id        = lower(each.key)
+#   api_name            = azurerm_api_management_api.mcp.name
+#   api_management_name = azurerm_api_management.poc.name
+#   resource_group_name = var.resource_group_name
+#   display_name        = "MCP ${each.key}"
+#   method              = each.key
+#   url_template        = "/"
+# }
+# resource "azurerm_api_management_api_policy" "mcp" {
+#   api_name            = azurerm_api_management_api.mcp.name
+#   api_management_name = azurerm_api_management.poc.name
+#   resource_group_name = var.resource_group_name
+#   xml_content = templatefile("${path.module}/policies/mcp.xml.tftpl", {
+#     tenant_id  = var.tenant_id
+#     audience   = var.api_audience
+#     client_ids = var.allowed_client_ids
+#   })
+# }
+#
+# # When enabling MCP, add mcp = azurerm_api_management_api.mcp.name to the
+# # existing diagnostic for_each map. Review the model client allowlist to add
+# # approved MCP workload identities alongside, or instead of, test clients.
