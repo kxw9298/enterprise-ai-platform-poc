@@ -49,8 +49,12 @@ Validation completed:
 - Azure-backed local plan: **31 to add, 0 to change, 0 to destroy**, existing group unchanged; CI scope guard passed.
 - Terraform schema validation, three mocked lifecycle tests, rendered policy checks and plan-guard tests passed.
 - After restoring comments, Terraform validation passed again; comments do not activate resources.
-- This milestone has not been validated by a fresh GitHub Actions plan. Do not cite earlier AKS workflow runs as current evidence.
+- GitHub Actions plan [36504225341](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36504225341) passed at `ac64c66`. Apply has not been dispatched.
 - A successful plan does not prove APIM policy runtime behavior, safety filtering, quota/capacity or live token accounting.
+
+## Latest provisioning attempt
+
+The user authorized provisioning through GitHub Actions. Provider registration was requested and the plan passed. Automatic approval review blocked the Entra API registration and persistent RBAC prerequisite changes pending explicit approval of their scopes. No rejected security operation ran. Read [deployment checkpoint](docs/runbooks/deployment-checkpoint.md) for the exact approval needed; do not bypass the rejection.
 
 ## Next work, in order
 
