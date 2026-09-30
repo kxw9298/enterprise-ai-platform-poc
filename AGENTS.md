@@ -6,7 +6,7 @@ This file is the entry point for any coding agent continuing this POC, including
 
 The eventual goal is Copilot Studio → APIM → internal MCP hosted on AKS, with APIM also serving as an AI model gateway and attributing tokens and estimated costs per client. Keep a simplified enterprise-style landing zone that can be spun up and torn down to save money.
 
-**Current milestone — phase 1:** validate Standard Copilot Studio private connectivity to Azure through the delegated Power Platform networks and internal APIM. A small MCP endpoint on Container Apps is the preferred runtime candidate, subject to subscription eligibility. AKS is phase 2: code is preserved but `enable_mcp_runtime=false` by default in Terraform and GitHub Actions. Foundry, Bastion and API-key cost reporting remain deferred. Read [phase-one scope](docs/runbooks/phase-one-private-connectivity.md) first.
+**Current milestone — phase 1:** validate Standard Copilot Studio private connectivity to Azure through the delegated Power Platform networks and internal APIM. A private Container Apps module and sample MCP endpoint are now prepared, not deployed. Follow [the two-stage deployment runbook](docs/runbooks/container-apps-deployment.md). AKS is phase 2: code is preserved but `enable_mcp_runtime=false` by default in Terraform and GitHub Actions. Foundry, Bastion and API-key cost reporting remain deferred. Read [phase-one scope](docs/runbooks/phase-one-private-connectivity.md) first.
 
 - Keep paid workloads in East US; the required West US Power Platform spoke is the regional exception. Avoid Premium tiers where practical and explain idle costs.
 - Keep APIM internal. Optional Bastion/jump access is disabled by default; private AKS deployment requires an in-VNet runner or equivalent access.
@@ -236,3 +236,16 @@ Internal Container Apps will reuse the workload VNet with its own delegated `/27
 ## Microsoft.App registration completed (2026-09-30)
 
 User explicitly approved registering only Microsoft.App and rechecking quota. Registration is now verified Registered. East US ManagedEnvironmentCount reports limit 1, currentValue 0, superseding the earlier pre-registration zero. No quota-increase request, billing upgrade, role change, other provider registration, environment association or workload deployment occurred. The earlier approval block for this narrow registration is resolved; it does not authorize the old AKS RBAC expansion. Next: prepare the private Container Apps runtime and sample MCP image pipeline, preserving disabled AKS. Per-environment consumption-core quota/capacity and runtime behavior remain unverified until deployment checks.
+
+
+## Container Apps implementation prepared (2026-09-30)
+
+This supersedes older notes saying Container Apps/DNS are not implemented. New local `container-apps` and shared `registry` modules prepare the internal Consumption environment, delegated workload subnet 10.45.0.64/27, private DNS, ACR Basic and a pull identity with AcrPull. AKS remains disabled and preserved, now consuming the shared registry. A moved block preserves ACR ownership if an older runtime state exists.
+
+The first apply uses empty `mcp_image_digest`: foundation only, no fake MCP image/app; authenticated APIM calls get 503 until ready (empty caller allowlist stays 403). The manual MCP image workflow builds/tests a non-root Linux image; publish=false needs no Azure access, publish=true uses OIDC/AcrPush and reports a digest. Pass that exact digest to both Terraform plan and apply; no out-of-band app update. Repeat digest on later normal runs. Down deletes ACR/images too, so rebuilding requires foundation-only → image build/push → app apply again.
+
+Sample service at services/mcp/connectivity uses official MCP SDK 2.2.0, locked transitive dependencies, stateless Streamable HTTP and only get_status. APIM authenticates and overwrites correlation ID; app ingress allows only APIM subnet, environment has public access disabled. Runtime Copilot authentication, actual ingress source IP and cold starts still require live validation.
+
+Read docs/runbooks/container-apps-deployment.md before applying. Pending approvals/prerequisites: ContainerRegistry/PowerPlatform registration, narrowed AcrPull delegation, APIM purge read correction, pipeline subscription-scoped Container Apps quota-read permission, and later registry-scoped AcrPush for image publication. prepare-mcp.py now defaults to container-apps (only AcrPull added); --runtime aks is explicit phase two. No grants, provider registrations, apply, image publication or environment association were made during this implementation turn.
+
+Local validation: nine Terraform lifecycle tests, five real HTTP MCP tests, five prerequisite-script tests, rendered APIM policy and plan guards passed. Azure-backed plans: foundation 40 additions / 1 hub update / 0 destroys; app-enabled plan uses a synthetic digest for validation only (not an existing image). Docker CLI on this host failed before building; GitHub build-only validation is the intended container test.

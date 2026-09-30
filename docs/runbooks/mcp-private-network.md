@@ -1,6 +1,6 @@
 # Private MCP connectivity: current Terraform design
 
-**Latest scope:** [Phase 1: Copilot Studio private connectivity](phase-one-private-connectivity.md). AKS/ACR is preserved for phase 2 and disabled by default; the Container Apps alternative is not yet implemented or deployed.
+**Latest scope:** [Phase 1: Copilot Studio private connectivity](phase-one-private-connectivity.md). AKS/ACR is preserved for phase 2 and disabled by default; Container Apps code is prepared, but not deployed.
 
 This supersedes the separate Power Platform root and the older model-first topology. Code preparation only; do not equate validation with deployment or a working MCP application.
 

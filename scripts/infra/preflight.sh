@@ -7,6 +7,7 @@ failures=0
 providers=(Microsoft.Network Microsoft.Compute Microsoft.ApiManagement Microsoft.OperationalInsights Microsoft.Insights Microsoft.ManagedIdentity Microsoft.PowerPlatform)
 [[ "${TF_VAR_enable_foundry:-false}" != true ]] || providers+=(Microsoft.CognitiveServices)
 [[ "${TF_VAR_enable_mcp_runtime:-false}" != true ]] || providers+=(Microsoft.ContainerService Microsoft.ContainerRegistry)
+[[ "${TF_VAR_enable_container_apps:-true}" != true ]] || providers+=(Microsoft.App Microsoft.ContainerRegistry)
 for provider in "${providers[@]}"; do
   state=$(az provider show --subscription "$subscription" --namespace "$provider" --query registrationState -o tsv)
   if [[ "$state" != Registered ]]; then
@@ -14,6 +15,18 @@ for provider in "${providers[@]}"; do
     failures=$((failures + 1))
   fi
 done
+# Container Apps environment quota is separate from VM quota. An existing environment
+# already consumes its slot, so repeat applies must not require an extra slot.
+if [[ "${OPERATION:-apply}" == apply && "${TF_VAR_enable_container_apps:-true}" == true ]]; then
+  container_usage=$(az rest --method get --url "https://management.azure.com/subscriptions/$subscription/providers/Microsoft.App/locations/eastus/usages?api-version=2025-07-01" -o json)
+  suffix=$(python3 -c 'import hashlib,sys; print(hashlib.sha256(sys.argv[1].encode()).hexdigest()[:8])' "$subscription")
+  existing=$(az resource list --subscription "$subscription" --resource-group rg-ai-platform-poc --resource-type Microsoft.App/managedEnvironments --query "[?name=='cae-aipoc-$suffix'].id" -o json)
+  if [[ "$(jq length <<< "$existing")" == 0 ]] && ! jq -e 'any(.value[]; .name.value == "ManagedEnvironmentCount" and ((.limit | tonumber) - (.currentValue | tonumber)) >= 1)' <<< "$container_usage" >/dev/null; then
+    echo 'NOT READY: no available Container Apps environment slot in East US.'
+    failures=$((failures + 1))
+  fi
+  echo 'Container Apps: verify environment consumption-core quota after environment creation; regional slot availability does not prove compute capacity.'
+fi
 # The current AKS defaults require 8 cores plus 4 for one surge node.
 # Check total limits so existing nodes do not make repeat applies fail. Other workloads
 # can consume this quota; review available capacity separately before apply.
@@ -60,6 +73,9 @@ if (( failures > 0 )); then
   exit 1
 fi
 echo 'Coarse provider and RBAC action checks passed. Role-assignment conditions are NOT evaluated.'
+if [[ "${TF_VAR_enable_container_apps:-true}" == true ]]; then
+  echo 'Container Apps requires AcrPull assignment delegation for its image-pull identity; image publishing separately requires registry-scoped AcrPush.'
+fi
 if [[ "${TF_VAR_enable_mcp_runtime:-false}" == true ]]; then
   echo 'Phase 2: existing gateway-only delegation is insufficient for AKS. Review Network Contributor, Managed Identity Operator, AcrPull and optional AKS admin delegation.'
 fi

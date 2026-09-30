@@ -1,0 +1,74 @@
+name: MCP image
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Push the tested image to the existing POC ACR (requires AcrPush); no Terraform apply
+        type: boolean
+        default: false
+permissions: {}
+concurrency:
+  group: terraform-poc-state
+  cancel-in-progress: false
+jobs:
+  image:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PUBLISH: ${{ inputs.publish }}
+      SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      DOCKER_CONFIG: ${{ runner.temp }}/mcp-docker-auth
+    steps:
+      - name: Check out this exact commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Build Linux image
+        run: docker build --platform linux/amd64 --label "org.opencontainers.image.revision=$GITHUB_SHA" -t mcp-connectivity:test services/mcp/connectivity
+      - name: Test real MCP protocol in container
+        run: |
+          set -euo pipefail
+          docker run --detach --name mcp-smoke --read-only --tmpfs /tmp -p 127.0.0.1:8080:8080 mcp-connectivity:test
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8080/healthz >/dev/null; then break; fi
+            sleep 1
+          done
+          python3 tests/mcp/smoke.py
+      - name: Sign in using existing OIDC identity
+        if: inputs.publish
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Push tested image and report immutable digest
+        if: inputs.publish
+        run: |
+          set -euo pipefail
+          [[ "$SUBSCRIPTION_ID" =~ ^[a-fA-F0-9]{8}(-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12}$ ]]
+          suffix=$(printf '%s' "$SUBSCRIPTION_ID" | sha256sum | cut -c1-8)
+          registry="craipoc$suffix"
+          server=$(az acr show --name "$registry" --resource-group rg-ai-platform-poc --query loginServer -o tsv)
+          [[ "$server" == "$registry.azurecr.io" ]]
+          az acr login --name "$registry" --output none
+          tag="$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          docker tag mcp-connectivity:test "$server/mcp-connectivity:$tag"
+          docker push "$server/mcp-connectivity:$tag"
+          digest=$(az acr repository show --name "$registry" --image "mcp-connectivity:$tag" --query digest -o tsv)
+          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
+          {
+            echo '## Tested MCP image'
+            printf 'Source commit: `%s`\n\nImage: `%s/mcp-connectivity@%s`\n\n' "$GITHUB_SHA" "$server" "$digest"
+            printf 'Use Terraform workflow input `mcp_image_digest`: `%s` for both plan and apply.\n' "$digest"
+            echo 'Pass the same digest on subsequent normal plans/applies to retain the app. After down deletes ACR, start foundation-only and rebuild. No infrastructure deployment was performed.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Clean up runner container and credentials
+        if: always()
+        run: |
+          docker rm -f mcp-smoke 2>/dev/null || true
+          rm -rf -- "$DOCKER_CONFIG"

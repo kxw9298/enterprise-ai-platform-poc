@@ -37,7 +37,7 @@ run "down_retains_foundation" {
   command = plan
   variables { enable_platform = false }
   assert {
-    condition     = length(module.platform) == 0 && length(module.mcp_runtime) == 0 && length(module.admin_access) == 0 && length(module.network.dns_vnet_ids) == 4
+    condition     = length(module.platform) == 0 && length(module.mcp_runtime) == 0 && length(module.admin_access) == 0 && length(module.container_apps) == 0 && length(module.registry) == 0 && length(module.network.dns_vnet_ids) == 4
     error_message = "Down must remove the whole platform module while retaining the group."
   }
 }
@@ -65,9 +65,33 @@ run "optional_admin_and_foundry" {
 
 run "phase_two_aks_is_preserved" {
   command = plan
-  variables { enable_mcp_runtime = true }
+  variables {
+    enable_mcp_runtime    = true
+    enable_container_apps = false
+  }
   assert {
     condition     = length(module.mcp_runtime) == 1
     error_message = "Phase 2 AKS must remain available behind its explicit switch."
   }
+}
+
+run "container_foundation_is_private_without_fake_app" {
+  command = plan
+  assert {
+    condition     = module.container_apps[0].private_ingress && !module.container_apps[0].app_deployed && !module.platform[0].connection_details.mcp_backend_ready
+    error_message = "The first apply must use internal ingress and must not fake a deployed MCP app."
+  }
+}
+run "image_digest_enables_mcp" {
+  command = plan
+  variables { mcp_image_digest = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+  assert {
+    condition     = module.container_apps[0].app_deployed && module.platform[0].connection_details.mcp_backend_ready && length(module.mcp_runtime) == 0
+    error_message = "A pinned image must enable Container Apps without AKS."
+  }
+}
+run "runtimes_are_mutually_exclusive" {
+  command = plan
+  variables { enable_mcp_runtime = true }
+  expect_failures = [var.enable_container_apps]
 }

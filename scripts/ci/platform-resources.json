@@ -12,7 +12,15 @@
   "module.admin_access[0].azurerm_subnet.jump": "azurerm_subnet",
   "module.admin_access[0].azurerm_subnet_nat_gateway_association.admin[0]": "azurerm_subnet_nat_gateway_association",
   "module.admin_access[0].azurerm_subnet_network_security_group_association.jump": "azurerm_subnet_network_security_group_association",
-  "module.mcp_runtime[0].azurerm_container_registry.poc": "azurerm_container_registry",
+  "module.container_apps[0].azurerm_container_app.mcp[0]": "azurerm_container_app",
+  "module.container_apps[0].azurerm_container_app_environment.poc": "azurerm_container_app_environment",
+  "module.container_apps[0].azurerm_private_dns_a_record.environment[\"*\"]": "azurerm_private_dns_a_record",
+  "module.container_apps[0].azurerm_private_dns_a_record.environment[\"@\"]": "azurerm_private_dns_a_record",
+  "module.container_apps[0].azurerm_private_dns_zone.environment": "azurerm_private_dns_zone",
+  "module.container_apps[0].azurerm_private_dns_zone_virtual_network_link.environment[\"hub\"]": "azurerm_private_dns_zone_virtual_network_link",
+  "module.container_apps[0].azurerm_private_dns_zone_virtual_network_link.environment[\"workload\"]": "azurerm_private_dns_zone_virtual_network_link",
+  "module.container_apps[0].azurerm_role_assignment.image_pull": "azurerm_role_assignment",
+  "module.container_apps[0].azurerm_user_assigned_identity.image_pull": "azurerm_user_assigned_identity",
   "module.mcp_runtime[0].azurerm_kubernetes_cluster.poc": "azurerm_kubernetes_cluster",
   "module.mcp_runtime[0].azurerm_role_assignment.acr_pull": "azurerm_role_assignment",
   "module.mcp_runtime[0].azurerm_role_assignment.aks_admin[0]": "azurerm_role_assignment",
@@ -24,6 +32,7 @@
   "module.network.azurerm_network_security_group.apim": "azurerm_network_security_group",
   "module.network.azurerm_subnet.aks": "azurerm_subnet",
   "module.network.azurerm_subnet.apim": "azurerm_subnet",
+  "module.network.azurerm_subnet.container_apps": "azurerm_subnet",
   "module.network.azurerm_subnet.delegated[\"eastus\"]": "azurerm_subnet",
   "module.network.azurerm_subnet.delegated[\"westus\"]": "azurerm_subnet",
   "module.network.azurerm_subnet_network_security_group_association.apim": "azurerm_subnet_network_security_group_association",
@@ -64,5 +73,6 @@
   "module.platform[0].module.foundry[0].azurerm_cognitive_deployment.chat": "azurerm_cognitive_deployment",
   "module.platform[0].module.foundry[0].azurerm_role_assignment.gateway_model": "azurerm_role_assignment",
   "module.platform[0].module.foundry[0].azurerm_user_assigned_identity.test_client[\"client-a\"]": "azurerm_user_assigned_identity",
-  "module.platform[0].module.foundry[0].azurerm_user_assigned_identity.test_client[\"client-b\"]": "azurerm_user_assigned_identity"
+  "module.platform[0].module.foundry[0].azurerm_user_assigned_identity.test_client[\"client-b\"]": "azurerm_user_assigned_identity",
+  "module.registry[0].azurerm_container_registry.poc": "azurerm_container_registry"
 }

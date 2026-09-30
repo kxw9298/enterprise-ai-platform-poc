@@ -22,16 +22,9 @@ resource "azurerm_role_assignment" "kubelet_operator" {
   principal_id         = azurerm_user_assigned_identity.control_plane.principal_id
   principal_type       = "ServicePrincipal"
 }
-resource "azurerm_container_registry" "poc" {
-  name                = "craipoc${var.suffix}"
-  resource_group_name = var.resource_group_name
-  location            = var.location
-  sku                 = "Basic"
-  admin_enabled       = false
-  tags                = var.tags
-}
+# Shared ACR is owned by ../registry for both runtime phases.
 resource "azurerm_role_assignment" "acr_pull" {
-  scope                = azurerm_container_registry.poc.id
+  scope                = var.registry_id
   role_definition_name = "AcrPull"
   principal_id         = azurerm_user_assigned_identity.kubelet.principal_id
   principal_type       = "ServicePrincipal"

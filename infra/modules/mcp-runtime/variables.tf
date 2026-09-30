@@ -13,3 +13,5 @@ variable "aks_subnet_id" { type = string }
 variable "aks_vnet_id" { type = string }
 variable "aks_admin_object_id" { type = string }
 variable "aks_node_size" { type = string }
+variable "registry_id" { type = string }
+variable "registry_server" { type = string }

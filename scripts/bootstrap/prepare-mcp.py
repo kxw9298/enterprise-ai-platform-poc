@@ -7,9 +7,11 @@ import subprocess
 
 ROLES = [
     'Cognitive Services OpenAI User', 'Monitoring Metrics Publisher',
-    'Network Contributor', 'Managed Identity Operator', 'AcrPull',
+    'AcrPull',
 ]
-PROVIDERS = ['Microsoft.ContainerService', 'Microsoft.ContainerRegistry', 'Microsoft.PowerPlatform']
+PROVIDERS = ['Microsoft.App', 'Microsoft.ContainerRegistry', 'Microsoft.PowerPlatform']
+AKS_ROLES = ROLES[:2] + ['Network Contributor', 'Managed Identity Operator', 'AcrPull']
+AKS_PROVIDERS = ['Microsoft.ContainerService', 'Microsoft.ContainerRegistry', 'Microsoft.PowerPlatform']
 PURGE_ACTION = 'Microsoft.ApiManagement/locations/deletedServices/read'
 
 
@@ -39,7 +41,10 @@ def main():
     parser.add_argument('--subscription', required=True)
     parser.add_argument('--pipeline-object-id', required=True)
     parser.add_argument('--apply', action='store_true')
+    parser.add_argument('--runtime', choices=['container-apps', 'aks'], default='container-apps')
     args = parser.parse_args()
+    roles = ROLES if args.runtime == 'container-apps' else AKS_ROLES
+    providers = PROVIDERS if args.runtime == 'container-apps' else AKS_PROVIDERS
     sub = '/subscriptions/' + args.subscription
     scope = sub + '/resourceGroups/rg-ai-platform-poc'
     common = ['--subscription', args.subscription]
@@ -53,7 +58,7 @@ def main():
                        and r['scope'].lower() == scope.lower()
                        and r['roleDefinitionId'].lower() == delegation['id'].lower()], 'pipeline delegation assignment')
     assert assignment['principalType'] == 'ServicePrincipal', 'Unexpected pipeline principal type'
-    ids = [only(az('role', 'definition', 'list', '--name', name, *common), name)['name'] for name in ROLES]
+    ids = [only(az('role', 'definition', 'list', '--name', name, *common), name)['name'] for name in roles]
     old_condition = condition(ids[:2])
     new_condition = condition(ids)
     assert assignment['conditionVersion'] == '2.0' and assignment['condition'] in (old_condition, new_condition), 'Unexpected existing delegation condition'
@@ -69,9 +74,9 @@ def main():
     actual_actions = {a.lower() for a in permission['actions']}
     assert actual_actions in (expected_actions, expected_actions | {PURGE_ACTION.lower()}), 'Unexpected purge actions'
     assert not any(permission.get(k) for k in ['notActions', 'dataActions', 'notDataActions', 'condition']), 'Unexpected purge exclusions or data actions'
-    print('Provider registrations:', ', '.join(PROVIDERS))
+    print('Provider registrations:', ', '.join(providers))
     print('Pipeline delegation scope:', scope)
-    print('Allowed roles for service principals only:', ', '.join(ROLES))
+    print('Allowed roles for service principals only:', ', '.join(roles))
     print('Purge role: add only', PURGE_ACTION, '(existing subscription scope)')
     print('No billing upgrade, quota request, environment association or workload deployment.')
     if not args.apply:
@@ -83,7 +88,7 @@ def main():
         path = records / (name + '.json')
         if not path.exists():
             path.write_text(json.dumps(value, indent=2) + '\n')
-    for provider in PROVIDERS:
+    for provider in providers:
         state = az('provider', 'show', '--namespace', provider, *common)['registrationState']
         if state != 'Registered':
             az('provider', 'register', '--namespace', provider, *common)

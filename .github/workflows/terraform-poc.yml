@@ -21,6 +21,14 @@ on:
         description: Phase 2 only - enable AKS and ACR (requires quota and reviewed role delegation)
         type: boolean
         default: false
+      enable_container_apps:
+        description: Phase 1 private Container Apps environment (disable when choosing AKS)
+        type: boolean
+        default: true
+      mcp_image_digest:
+        description: Immutable sha256 digest from image workflow; empty means foundation-only mode
+        type: string
+        required: false
       enable_foundry:
         description: Enable optional Foundry model resources
         type: boolean
@@ -61,6 +69,8 @@ jobs:
       TF_VAR_api_audience: ${{ vars.MODEL_API_AUDIENCE || 'api://enterprise-ai-platform-poc' }}
       TF_VAR_enable_mcp_runtime: ${{ inputs.enable_mcp_runtime }}
       TF_VAR_allowed_client_ids: ${{ vars.MCP_ALLOWED_CLIENT_IDS || '[]' }}
+      TF_VAR_enable_container_apps: ${{ inputs.enable_container_apps }}
+      TF_VAR_mcp_image_digest: ${{ inputs.mcp_image_digest || '' }}
       TF_VAR_enable_foundry: ${{ inputs.enable_foundry }}
       POWER_PLATFORM_DETACHED: ${{ inputs.power_platform_detached }}
       TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}

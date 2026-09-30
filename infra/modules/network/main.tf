@@ -147,3 +147,18 @@ resource "azurerm_virtual_network_peering" "spoke_to_hub" {
   allow_gateway_transit        = false
   use_remote_gateways          = false
 }
+
+# Separate delegated subnet; the reserved AKS subnet remains for phase 2.
+resource "azurerm_subnet" "container_apps" {
+  name                 = "snet-container-apps"
+  resource_group_name  = var.resource_group_name
+  virtual_network_name = azurerm_virtual_network.aks.name
+  address_prefixes     = ["10.45.0.64/27"]
+  delegation {
+    name = "container-apps"
+    service_delegation {
+      name    = "Microsoft.App/environments"
+      actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
+    }
+  }
+}

@@ -4,3 +4,6 @@ output "aks_subnet_id" { value = azurerm_subnet.aks.id }
 output "aks_vnet_id" { value = azurerm_virtual_network.aks.id }
 output "dns_vnet_ids" { value = merge({ hub = azurerm_virtual_network.poc.id }, local.spokes) }
 output "enterprise_policy_id" { value = azapi_resource.network_policy.id }
+
+output "container_apps_subnet_id" { value = azurerm_subnet.container_apps.id }
+output "backend_dns_vnet_ids" { value = { hub = azurerm_virtual_network.poc.id, workload = azurerm_virtual_network.aks.id } }

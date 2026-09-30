@@ -1,6 +1,6 @@
 # Enterprise AI Platform POC
 
-**Latest scope:** [Phase 1: Copilot Studio private connectivity](docs/runbooks/phase-one-private-connectivity.md). AKS/ACR is preserved for phase 2 and disabled by default; the Container Apps alternative is not yet implemented or deployed.
+**Latest scope:** [Phase 1: Copilot Studio private connectivity](docs/runbooks/phase-one-private-connectivity.md). AKS/ACR is preserved for phase 2 and disabled by default; Container Apps code is prepared, but not deployed.
 
 **Current code:** [Private MCP hub-and-spoke](docs/runbooks/mcp-private-network.md). One root/state; network persists during down; Foundry and Bastion default off. Earlier inventories below are historical.
 

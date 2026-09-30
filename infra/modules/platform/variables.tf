@@ -18,4 +18,6 @@ variable "allowed_client_ids" { type = list(string) }
 variable "requests_per_minute" { type = number }
 variable "tokens_per_minute" { type = number }
 variable "daily_token_quota" { type = number }
-locals { mcp_ip = "10.45.0.10" }
+
+variable "mcp_backend_url" { type = string }
+variable "mcp_backend_ready" { type = bool }

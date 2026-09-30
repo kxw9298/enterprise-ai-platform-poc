@@ -58,6 +58,8 @@ module "platform" {
   requests_per_minute = var.requests_per_minute
   tokens_per_minute   = var.tokens_per_minute
   daily_token_quota   = var.daily_token_quota
+  mcp_backend_url     = var.enable_container_apps ? module.container_apps[0].backend_url : "http://10.45.0.10:8080"
+  mcp_backend_ready   = var.enable_container_apps ? var.mcp_image_digest != "" : var.enable_mcp_runtime
   depends_on          = [module.network]
 }
 module "mcp_runtime" {
@@ -72,6 +74,8 @@ module "mcp_runtime" {
   aks_vnet_id         = module.network.aks_vnet_id
   aks_admin_object_id = var.aks_admin_object_id
   aks_node_size       = var.aks_node_size
+  registry_id         = module.registry[0].id
+  registry_server     = module.registry[0].login_server
 }
 module "admin_access" {
   count               = var.enable_platform && var.enable_admin_access ? 1 : 0
@@ -85,4 +89,27 @@ module "admin_access" {
   jump_ssh_public_key = var.jump_ssh_public_key
   jump_vm_size        = var.jump_vm_size
   enable_jump_egress  = var.enable_jump_egress
+}
+
+module "registry" {
+  count               = var.enable_platform && (var.enable_container_apps || var.enable_mcp_runtime) ? 1 : 0
+  source              = "../modules/registry"
+  resource_group_name = azurerm_resource_group.poc.name
+  location            = azurerm_resource_group.poc.location
+  suffix              = local.suffix
+  tags                = azurerm_resource_group.poc.tags
+}
+module "container_apps" {
+  count               = var.enable_platform && var.enable_container_apps ? 1 : 0
+  source              = "../modules/container-apps"
+  resource_group_name = azurerm_resource_group.poc.name
+  location            = azurerm_resource_group.poc.location
+  suffix              = local.suffix
+  tags                = azurerm_resource_group.poc.tags
+  subnet_id           = module.network.container_apps_subnet_id
+  dns_vnet_ids        = module.network.backend_dns_vnet_ids
+  workspace_id        = module.platform[0].log_analytics_id
+  registry_id         = module.registry[0].id
+  registry_server     = module.registry[0].login_server
+  image_digest        = var.mcp_image_digest
 }

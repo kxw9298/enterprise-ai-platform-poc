@@ -14,6 +14,10 @@
     </validate-azure-ad-token>
     <set-header name="x-client-id" exists-action="override"><value>@(((Jwt)context.Variables["caller"]).Claims.GetValueOrDefault("azp", ((Jwt)context.Variables["caller"]).Claims.GetValueOrDefault("appid", "unknown")))</value></set-header>
 %{ endif ~}
+%{ if !backend_ready ~}
+    <return-response><set-status code="503" reason="MCP backend not deployed" /></return-response>
+%{ endif ~}
+    <set-header name="x-request-id" exists-action="override"><value>@(context.RequestId.ToString())</value></set-header>
     <rewrite-uri template="/mcp" copy-unmatched-params="true" />
   </inbound>
   <backend><forward-request buffer-response="false" /></backend>

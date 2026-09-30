@@ -54,11 +54,11 @@ resource "azurerm_api_management_api" "mcp" {
   api_management_name   = azurerm_api_management.poc.name
   resource_group_name   = var.resource_group_name
   revision              = "1"
-  display_name          = "Internal AKS MCP"
+  display_name          = "Private MCP"
   path                  = "mcp"
   protocols             = ["https"]
   subscription_required = false
-  service_url           = "http://${local.mcp_ip}:8080"
+  service_url           = var.mcp_backend_url
 }
 resource "azurerm_api_management_api_operation" "mcp" {
   for_each            = toset(["GET", "POST", "DELETE"])
@@ -75,8 +75,9 @@ resource "azurerm_api_management_api_policy" "mcp" {
   api_management_name = azurerm_api_management.poc.name
   resource_group_name = var.resource_group_name
   xml_content = templatefile("${path.module}/policies/mcp.xml.tftpl", {
-    tenant_id  = var.tenant_id
-    audience   = var.api_audience
-    client_ids = var.allowed_client_ids
+    tenant_id     = var.tenant_id
+    audience      = var.api_audience
+    client_ids    = var.allowed_client_ids
+    backend_ready = var.mcp_backend_ready
   })
 }

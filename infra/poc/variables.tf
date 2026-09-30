@@ -117,3 +117,22 @@ variable "allowed_client_ids" {
     error_message = "Client IDs must be UUIDs."
   }
 }
+
+variable "enable_container_apps" {
+  type        = bool
+  default     = true
+  description = "Phase 1 private Consumption environment; mutually exclusive with AKS MCP backend."
+  validation {
+    condition     = !(var.enable_container_apps && var.enable_mcp_runtime)
+    error_message = "Choose one MCP runtime: Container Apps for phase 1 or AKS for phase 2."
+  }
+}
+variable "mcp_image_digest" {
+  type        = string
+  default     = ""
+  description = "sha256 digest from the MCP image workflow. Empty creates foundation only and APIM returns 503."
+  validation {
+    condition     = var.mcp_image_digest == "" || can(regex("^sha256:[a-f0-9]{64}$", var.mcp_image_digest))
+    error_message = "Use an immutable sha256 digest or leave empty for the first foundation apply."
+  }
+}
