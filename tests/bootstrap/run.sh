@@ -51,6 +51,24 @@ bash "$SCRIPT/setup.sh" --execute > "$TEST_DIR/output"
 cmp "$BOOTSTRAP_LOCAL_DIR/manifest.json" "$TEST_DIR/first-manifest.json"
 ! grep -Eq '^(group create|storage account create|rest --method POST|ad sp create|role definition create)' "$MOCK_DIR/calls.log"
 pass 'repeat setup reuses owned resources without duplicate IDs'
+# The quota-read permission is part of the exact bootstrap contract; don't silently
+# accept an older role or broaden the contract to tolerate arbitrary extra actions.
+jq -e '.[0].permissions[0] | (.actions | index("Microsoft.App/locations/usages/read")) != null' "$MOCK_DIR/role.json" >/dev/null
+pass 'created subscription role includes the Container Apps quota read action'
+cp "$MOCK_DIR/role.json" "$TEST_DIR/expected-role.json"
+for scenario in missing-quota-read extra-action; do
+  if [[ "$scenario" == missing-quota-read ]]; then
+    jq '.[0].permissions[0].actions -= ["Microsoft.App/locations/usages/read"]' "$TEST_DIR/expected-role.json" > "$MOCK_DIR/role.json"
+  else
+    jq '.[0].permissions[0].actions += ["*"]' "$TEST_DIR/expected-role.json" > "$MOCK_DIR/role.json"
+  fi
+  expect_block 'Custom role ownership or permissions drifted' "$SCRIPT/setup.sh" --execute
+  ! grep -Eq '^role (definition|assignment) (create|update)' "$MOCK_DIR/calls.log"
+  pass "$scenario blocks setup without silently changing role permissions"
+done
+cp "$TEST_DIR/expected-role.json" "$MOCK_DIR/role.json"
+bash "$SCRIPT/setup.sh" --execute > "$TEST_DIR/output"
+pass 'reviewed quota-read definition is accepted on repeat setup'
 # Workload grant rejects missing ownership tags, then succeeds with Terraform tags.
 printf '{"tags":{}}' > "$MOCK_DIR/rg-ai-platform-poc.json"
 expect_block 'Workload group must carry' "$SCRIPT/grant-workload.sh" --execute

@@ -301,9 +301,9 @@ That is `Microsoft.App/locations/usages/read` at **subscription** scope. The Git
 
 The quota check itself would pass: `ManagedEnvironmentCount limit=1 current=0`.
 
-Recommended fix: append `Microsoft.App/locations/usages/read` to the existing `AI POC Resource Group Writer` role definition. Same definition-update mechanism already used for the purge role, no new role and no new assignment, and it reaches the principal immediately because definition updates apply to existing assignments. This is still an RBAC change and needs the user's explicit approval; it was raised but not approved. Do not work around it by weakening `preflight.sh` — that check is what stands between the user and a silent capacity failure.
+Recommended fix: after explicit permission approval, append `Microsoft.App/locations/usages/read` to the existing `AI POC Resource Group Writer` role definition. The bootstrap definition in `scripts/bootstrap/setup.sh` now includes this action, so the approved live definition and future bootstrap runs can agree. Same definition-update mechanism already used for the purge role, no new role and no new assignment, and existing assignments reference the updated definition after RBAC propagation. This is still an RBAC change and needs the user's explicit approval; it was raised but not approved. Do not work around it by weakening `preflight.sh` — that check is what stands between the user and a silent capacity failure.
 
-### Consumption-core quota constraint (new, 2026-09-30)
+### Quota observations (corrected after review, 2026-09-30)
 
 `az rest` against the Container Apps usage API for East US reports:
 
@@ -313,7 +313,7 @@ Recommended fix: append `Microsoft.App/locations/usages/read` to the existing `A
 | SandboxCores | **1** | 0 |
 | ExpressEnvironmentCount | 450 | 0 |
 
-`SandboxCores` of 1 is the per-environment consumption-core allowance and it is the hard number behind this file's repeated "headroom for revision overlap" warnings. The sample MCP server is small (minimum 0.25 vCPU) so a single revision fits comfortably, but **two concurrent revisions will not**. A revision change briefly runs old and new side by side and may be throttled or rejected at that moment. This does not block phase one; it does mean do not plan on overlapping revisions or increased replica counts. Confirm the environment's own value after creation with `az containerapp env list-usages --resource-group rg-ai-platform-poc --name cae-aipoc-<suffix>`.
+`SandboxCores` is a separate Sandboxes quota, not the managed environment's Consumption-core allowance. The subscription-level response above therefore does not establish our app's compute ceiling. Read **Managed Environment Consumption Cores** after the environment exists with `az containerapp env list-usages --resource-group rg-ai-platform-poc --name cae-aipoc-<suffix>`. Two single-replica revisions at the configured 0.25 vCPU total 0.5 vCPU; the earlier assertion that they exceed one core was incorrect. Review total active replicas across the environment and actual available quota before rollout, without claiming overlap is prohibited.
 
 ### Remaining sequence to phase-one connectivity
 
@@ -326,6 +326,13 @@ The app cannot be in the first apply: deploying it needs an image, pushing an im
 5. Re-run apply with that exact digest; this is what adds the app. Never set the app out of band.
 6. Live-test through APIM, then link the Power Platform environment and test Copilot Studio.
 
-Between steps 2 and 5 the APIM MCP API exists but its backend hostname resolves to nothing, so authenticated calls return `503` and the empty caller allowlist stays `403`. That is the intended intermediate state, not a fault; do not "fix" it.
+Between steps 2 and 5 the private wildcard DNS record resolves the backend hostname to the environment IP, but the MCP app does not exist. The explicit APIM backend-not-deployed policy returns `503` to trusted callers; an empty caller allowlist still returns `403`. That is the intended intermediate state, not a fault; do not "fix" it.
 
 Note that `down` deletes the ACR and its images, so any later rebuild repeats steps 2, 4 and 5.
+
+
+## Review corrections (2026-09-30)
+
+Corrected the SandboxCores/Consumption quota mix-up and revision CPU arithmetic. The actual environment Consumption quota is still unknown. Updated the source-controlled bootstrap subscription role to include Microsoft.App/locations/usages/read and kept exact permission validation: extra permissions and the legacy definition missing this action fail closed. This is a code change only, not an Azure grant. An administrator must apply the explicitly approved live role update before rerunning setup against the existing role; setup does not migrate it automatically. Canonical Documents checkout is readable again and was fast-forwarded to 077907e before these fixes. No Azure mutations or Terraform apply in this review-fix turn.
+
+Review-fix validation: 25 mocked bootstrap integration checks and 9 prerequisite-script tests passed; shell syntax and diff whitespace checks passed. No cloud access was needed for these tests.

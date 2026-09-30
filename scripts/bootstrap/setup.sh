@@ -72,7 +72,8 @@ fi
 role=$(jq -nc --arg name "$ROLE_NAME" --arg id "$ROLE_ID" --arg token "$TOKEN" --arg scope "$SUB_SCOPE" \
   '{Name:$name, Id:$id, IsCustom:true, Description:$token,
     Actions:["Microsoft.Resources/subscriptions/resourceGroups/read", "Microsoft.Resources/subscriptions/resourceGroups/write",
-      "Microsoft.Resources/subscriptions/read", "Microsoft.Resources/subscriptions/providers/read", "Microsoft.Resources/subscriptions/locations/read"],
+      "Microsoft.Resources/subscriptions/read", "Microsoft.Resources/subscriptions/providers/read", "Microsoft.Resources/subscriptions/locations/read",
+      "Microsoft.App/locations/usages/read"],
     NotActions:[], DataActions:[], NotDataActions:[], AssignableScopes:[$scope]}')
 roles=$(azj role definition list --name "$ROLE_NAME" "${SUB_ARGS[@]}")
 if [[ "$(jq length <<< "$roles")" == 0 ]]; then

@@ -95,7 +95,7 @@ This new repository uses GitHub's immutable OIDC subject format. The numeric own
 
 | Permission | Scope | Purpose |
 | --- | --- | --- |
-| Custom Resource Group Writer | Subscription | Read/create/update resource groups and read subscription metadata |
+| Custom Resource Group Writer | Subscription | Read/create/update resource groups, read subscription metadata, and read Container Apps regional quota (`Microsoft.App/locations/usages/read`) |
 | Storage Blob Data Contributor, pipeline identity | State container only | Terraform state and locking |
 | Storage Blob Data Contributor, bootstrap operator | State container only | Local Terraform and cleanup state checks |
 | Contributor, added in step 4 | POC group only | Deploy/destroy platform resources and the POC group |
@@ -178,3 +178,8 @@ The shell tests put a fake `az` executable first on PATH, use isolated temporary
 - [GitHub: OIDC with Azure](https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-azure)
 - [HashiCorp: AzureRM backend and Entra/OIDC authentication](https://developer.hashicorp.com/terraform/language/backend/azurerm)
 - [Microsoft: custom Azure roles](https://learn.microsoft.com/en-us/azure/role-based-access-control/custom-roles)
+
+
+### Existing-role migration for Container Apps quota reads
+
+The source-controlled bootstrap role now includes `Microsoft.App/locations/usages/read`. This does not update the existing Azure role automatically. After explicit approval, an administrator must append that one action to the existing owned role definition, preserving its ID, scope, other actions and assignments. Allow RBAC propagation and verify with the pipeline identity. Subsequent setup runs then match the expected definition. Until that live update, setup rejects the legacy role as permission drift; it does not silently broaden permissions. Extra actions remain rejected too. This migration is still pending at the 2026-09-30 review checkpoint.
