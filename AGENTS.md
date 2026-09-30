@@ -289,7 +289,7 @@ Do not add a `azurerm_private_endpoint` or switch the environment to external ac
 
 ### Next action
 
-**The apply is currently blocked and cannot proceed as-is.** Do not attempt the foundation apply until this is resolved.
+**Historical blocker, resolved by the approved quota-read role update below.** Effective access still needs verification with a fresh pipeline login.
 
 `preflight.sh` branches on operation. With `OPERATION=apply` and `enable_container_apps=true` it additionally calls:
 
@@ -319,7 +319,7 @@ Recommended fix: after explicit permission approval, append `Microsoft.App/locat
 
 The app cannot be in the first apply: deploying it needs an image, pushing an image needs a registry, and the registry is created by the foundation apply.
 
-1. Grant the pipeline `Microsoft.App/locations/usages/read` (read-only, subscription scope) — **blocked on approval, this is the next step**.
+1. Completed after explicit approval: add `Microsoft.App/locations/usages/read` to the existing subscription-scoped role. Verify effective access on the next fresh pipeline login.
 2. Foundation-only apply with an empty `mcp_image_digest`. Creates ACR, the internal Container Apps environment, the delegated workload subnet, private DNS zones and links, internal APIM with the MCP API and policy, App Insights and Log Analytics — but **no MCP app**. **This is the first billable step**; ACR Basic and telemetry bill.
 3. Verify the environment is internal-only and read its consumption quota.
 4. Build and publish a real image digest. Needs registry-scoped `AcrPush` — **still a separate approval**, distinct from the AcrPull already delegated.
@@ -336,3 +336,10 @@ Note that `down` deletes the ACR and its images, so any later rebuild repeats st
 Corrected the SandboxCores/Consumption quota mix-up and revision CPU arithmetic. The actual environment Consumption quota is still unknown. Updated the source-controlled bootstrap subscription role to include Microsoft.App/locations/usages/read and kept exact permission validation: extra permissions and the legacy definition missing this action fail closed. This is a code change only, not an Azure grant. An administrator must apply the explicitly approved live role update before rerunning setup against the existing role; setup does not migrate it automatically. Canonical Documents checkout is readable again and was fast-forwarded to 077907e before these fixes. No Azure mutations or Terraform apply in this review-fix turn.
 
 Review-fix validation: 25 mocked bootstrap integration checks and 9 prerequisite-script tests passed; shell syntax and diff whitespace checks passed. No cloud access was needed for these tests.
+
+
+## Approved quota-read permission applied (2026-09-30)
+
+User explicitly approved the single quota-read action. Updated existing role `AI POC Resource Group Writer c38dc8cb9cf7` (ID `7c56d0d5-de45-43c9-a720-1928b428f78d`) in place, adding only `Microsoft.App/locations/usages/read`. Independently reread and compared: role ID, subscription scope, description, previous actions, exclusions and data permissions are unchanged. Pipeline principal `124dede3-5033-431e-b267-9ef7e8eaeddf` retains its existing assignment `bf438a24-1c86-5b48-8567-8b9014ca3a4f`; no new assignment was created. Before/update/after records are ignored under `.local/deployment-prerequisites/quota-reader-*.json`.
+
+The live definition now matches the bootstrap source. This resolves the outstanding grant approval, but a fresh GitHub OIDC login must still prove effective permissions after propagation; that test has not been run in this turn. No workload apply, image publication, AcrPush grant or environment association occurred. Next: fresh foundation plan and preflight before authorized deployment; AcrPush remains a separate prerequisite after ACR exists.
