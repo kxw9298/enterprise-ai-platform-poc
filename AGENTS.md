@@ -8,7 +8,7 @@ The eventual goal is Copilot Studio → APIM → internal MCP hosted on AKS, wit
 
 **Current milestone — phase 1:** validate Standard Copilot Studio private connectivity to Azure through the delegated Power Platform networks and internal APIM. A private Container Apps module and sample MCP endpoint are now prepared, not deployed. Follow [the two-stage deployment runbook](docs/runbooks/container-apps-deployment.md). AKS is phase 2: code is preserved but `enable_mcp_runtime=false` by default in Terraform and GitHub Actions. Foundry, Bastion and API-key cost reporting remain deferred. Read [phase-one scope](docs/runbooks/phase-one-private-connectivity.md) first.
 
-**Status 2026-09-30: prerequisites cleared, nothing deployed.** `Microsoft.App`, `Microsoft.ContainerRegistry` and `Microsoft.PowerPlatform` are all Registered. The APIM purge role now carries the location-scoped `deletedServices/read`, and the RG-scoped ServicePrincipal-only delegation now includes `AcrPull`. `preflight.sh` passes for `plan`, `down`, `destroy` and `apply`. See [Approvals executed](#approvals-executed-2026-09-30) for exactly what changed. Still outstanding: the foundation-only apply (first billable step), publishing a real image digest, registry-scoped `AcrPush`, and per-environment consumption-core quota which is only checkable after the environment exists. Ingress stays as-is — see the ingress note below; do not add a private endpoint without a new decision.
+**Status 2026-09-30: prerequisites cleared, nothing deployed, apply blocked.** `Microsoft.App`, `Microsoft.ContainerRegistry` and `Microsoft.PowerPlatform` are all Registered. The APIM purge role now carries the location-scoped `deletedServices/read`, and the RG-scoped ServicePrincipal-only delegation now includes `AcrPull`. `preflight.sh` exits 0 locally, but **the foundation apply is still blocked**: its apply-only branch calls `Microsoft.App/locations/usages/read` at subscription scope, which the pipeline identity does not hold, so it will 403 under `set -e`. A successful plan does not prove otherwise. The foundation plan is clean at **40 to add, 1 to change, 0 to destroy** (read-only run 36760760217 at `241c545`). East US `SandboxCores` quota is **1**, so only one revision fits at a time. See [Next action](#next-action) for the precise blocker, the recommended one-action fix and the remaining sequence. Ingress stays as-is; do not add a private endpoint without a new decision.
 
 - Keep paid workloads in East US; the required West US Power Platform spoke is the regional exception. Avoid Premium tiers where practical and explain idle costs.
 - Keep APIM internal. Optional Bastion/jump access is disabled by default; private AKS deployment requires an in-VNet runner or equivalent access.
@@ -289,4 +289,43 @@ Do not add a `azurerm_private_endpoint` or switch the environment to external ac
 
 ### Next action
 
-Stop and ask before the foundation-only apply, since it is the first billable step. Foundation creates the ACR, which bills. After that: build and publish a real image digest, then re-run with that digest. Still outstanding as separate approvals: the pipeline's subscription-scoped Container Apps quota-read permission and registry-scoped `AcrPush` for publication.
+**The apply is currently blocked and cannot proceed as-is.** Do not attempt the foundation apply until this is resolved.
+
+`preflight.sh` branches on operation. With `OPERATION=apply` and `enable_container_apps=true` it additionally calls:
+
+```
+az rest --method get --url ".../subscriptions/<sub>/providers/Microsoft.App/locations/eastus/usages?api-version=2025-07-01"
+```
+
+That is `Microsoft.App/locations/usages/read` at **subscription** scope. The GitHub OIDC principal holds only `AI POC Resource Group Writer` and `AI POC Deleted Service Purge` at subscription scope, and between them it has **zero** `Microsoft.App/*` actions — the only location-ish action is `Microsoft.Resources/subscriptions/locations/read`, a different provider. Under `set -euo pipefail` a 403 on that call aborts preflight before the quota check evaluates, so the apply fails at preflight. A successful **plan does not prove this**, because the plan path never enters this branch; run `preflight.sh` with `OPERATION=apply` if you want to see it fail.
+
+The quota check itself would pass: `ManagedEnvironmentCount limit=1 current=0`.
+
+Recommended fix: append `Microsoft.App/locations/usages/read` to the existing `AI POC Resource Group Writer` role definition. Same definition-update mechanism already used for the purge role, no new role and no new assignment, and it reaches the principal immediately because definition updates apply to existing assignments. This is still an RBAC change and needs the user's explicit approval; it was raised but not approved. Do not work around it by weakening `preflight.sh` — that check is what stands between the user and a silent capacity failure.
+
+### Consumption-core quota constraint (new, 2026-09-30)
+
+`az rest` against the Container Apps usage API for East US reports:
+
+| Quota | Limit | Current |
+| --- | --- | --- |
+| ManagedEnvironmentCount | 1 | 0 |
+| SandboxCores | **1** | 0 |
+| ExpressEnvironmentCount | 450 | 0 |
+
+`SandboxCores` of 1 is the per-environment consumption-core allowance and it is the hard number behind this file's repeated "headroom for revision overlap" warnings. The sample MCP server is small (minimum 0.25 vCPU) so a single revision fits comfortably, but **two concurrent revisions will not**. A revision change briefly runs old and new side by side and may be throttled or rejected at that moment. This does not block phase one; it does mean do not plan on overlapping revisions or increased replica counts. Confirm the environment's own value after creation with `az containerapp env list-usages --resource-group rg-ai-platform-poc --name cae-aipoc-<suffix>`.
+
+### Remaining sequence to phase-one connectivity
+
+The app cannot be in the first apply: deploying it needs an image, pushing an image needs a registry, and the registry is created by the foundation apply.
+
+1. Grant the pipeline `Microsoft.App/locations/usages/read` (read-only, subscription scope) — **blocked on approval, this is the next step**.
+2. Foundation-only apply with an empty `mcp_image_digest`. Creates ACR, the internal Container Apps environment, the delegated workload subnet, private DNS zones and links, internal APIM with the MCP API and policy, App Insights and Log Analytics — but **no MCP app**. **This is the first billable step**; ACR Basic and telemetry bill.
+3. Verify the environment is internal-only and read its consumption quota.
+4. Build and publish a real image digest. Needs registry-scoped `AcrPush` — **still a separate approval**, distinct from the AcrPull already delegated.
+5. Re-run apply with that exact digest; this is what adds the app. Never set the app out of band.
+6. Live-test through APIM, then link the Power Platform environment and test Copilot Studio.
+
+Between steps 2 and 5 the APIM MCP API exists but its backend hostname resolves to nothing, so authenticated calls return `503` and the empty caller allowlist stays `403`. That is the intended intermediate state, not a fault; do not "fix" it.
+
+Note that `down` deletes the ACR and its images, so any later rebuild repeats steps 2, 4 and 5.

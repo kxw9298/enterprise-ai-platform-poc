@@ -26,7 +26,7 @@ All seven required providers are registered. East US regional and StandardDsv7Fa
 
 1. `Microsoft.ApiManagement/locations/deletedServices/read` was appended to the role definition; the Cognitive Services `deletedAccounts/read` was already location-scoped and is unchanged.
 2. The role assignment was left in place. Azure custom role *definition* updates take effect immediately for every assignment referencing that role, so no re-assignment was required; only RBAC propagation and a fresh pipeline login were.
-3. The role now carries five actions at the unchanged subscription scope, with empty `notActions` and `dataActions`. `preflight.sh` passes for `plan`, `down`, `destroy` and `apply`.
+3. The role now carries five actions at the unchanged subscription scope, with empty `notActions` and `dataActions`. `preflight.sh` exits 0 for `plan`, `down`, `destroy` and `apply` when run as an operator. That does not imply the pipeline can apply: its apply-only quota branch needs `Microsoft.App/locations/usages/read` at subscription scope, which the OIDC principal does not hold. See the phase-one blocker in `AGENTS.md`.
 
 Two bugs in `prepare-mcp.py` surfaced only on the first real `--apply`, because review mode never builds the mutation payloads:
 

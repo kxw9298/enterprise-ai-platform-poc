@@ -19,9 +19,14 @@ App ingress is `external_enabled=true` to allow APIM outside the Container Apps 
 
 ## Prerequisites
 
-**Resolved 2026-09-30.** `Microsoft.App`, `Microsoft.ContainerRegistry` and `Microsoft.PowerPlatform` are all Registered. The `AI POC Deleted Service Purge` role carries the location-scoped `Microsoft.ApiManagement/locations/deletedServices/read` at its unchanged subscription scope, and the existing conditioned RG delegation now allows **AcrPull for ServicePrincipal recipients only** alongside the two pre-existing roles, still constraining both write and delete. `scripts/bootstrap/prepare-mcp.py --apply` performed these; review mode makes no changes, and unexpected scopes or conditions fail closed. The old AKS expansion requires explicit `--runtime aks`. `preflight.sh` now passes for `plan`, `down`, `destroy` and `apply`. See the deployment checkpoint for records and for two script bugs this surfaced.
+**Resolved 2026-09-30.** `Microsoft.App`, `Microsoft.ContainerRegistry` and `Microsoft.PowerPlatform` are all Registered. The `AI POC Deleted Service Purge` role carries the location-scoped `Microsoft.ApiManagement/locations/deletedServices/read` at its unchanged subscription scope, and the existing conditioned RG delegation now allows **AcrPull for ServicePrincipal recipients only** alongside the two pre-existing roles, still constraining both write and delete. `scripts/bootstrap/prepare-mcp.py --apply` performed these; review mode makes no changes, and unexpected scopes or conditions fail closed. The old AKS expansion requires explicit `--runtime aks`. See the deployment checkpoint for records and for two script bugs this surfaced.
 
-East US environment count is 1 allowed / 0 used at the last check. Consumption-core quota is per environment and must be inspected after it exists (including headroom for revision overlap). Registration does not prove actual regional capacity.
+**Still blocking the apply.** Two items remain, both needing approval:
+
+- The pipeline lacks subscription-scoped `Microsoft.App/locations/usages/read`, which `preflight.sh` calls only when `OPERATION=apply`. It will 403 and abort preflight. A passing plan does not prove otherwise. Recommended fix: append that single read action to the existing `AI POC Resource Group Writer` definition — no new role, no new assignment.
+- Registry-scoped `AcrPush` for the image-publish workflow, which is separate from the `AcrPull` already delegated and only needed once the ACR exists.
+
+East US quota measured 2026-09-30: `ManagedEnvironmentCount` 1/0 used, and **`SandboxCores` 1/0**. That single core is the per-environment consumption allowance, so the sample MCP server (minimum 0.25 vCPU) fits with one revision but **overlapping revisions will not** — a revision change briefly runs old and new side by side. Registration does not prove actual regional capacity; re-read the environment's own usage after creation with `az containerapp env list-usages --resource-group rg-ai-platform-poc --name cae-aipoc-<suffix>`.
 
 The pipeline also needs subscription-scoped **Microsoft.App/locations/usages/read** to run the regional quota preflight. Its original bootstrap subscription-reader actions do not include this provider-specific action. Review a narrowly scoped read grant before apply; RG Contributor alone does not cover this subscription-level query.
 
