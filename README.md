@@ -1,5 +1,7 @@
 # Enterprise AI Platform POC
 
+**Current code:** [Private MCP hub-and-spoke](docs/runbooks/mcp-private-network.md). One root/state; network persists during down; Foundry and Bastion default off. Earlier inventories below are historical.
+
 A secure, Azure-centered enterprise AI platform proof of concept. This monorepo brings together architecture documentation, application code, infrastructure as code, deployment configuration, and operational scripts.
 
 ## Intended architecture

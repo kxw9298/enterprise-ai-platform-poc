@@ -1,5 +1,7 @@
 # Disposable POC platform
 
+**Current code:** [Private MCP hub-and-spoke](../../docs/runbooks/mcp-private-network.md). One root/state; network persists during down; Foundry and Bastion default off. Earlier inventories below are historical.
+
 **Current first milestone:** [Foundry + internal APIM model gateway](../../docs/runbooks/model-gateway-first.md), with two secretless test-client IDs, content filtering, request/token limits and per-client cost reporting. AKS/ACR/MCP are removed from the active Terraform root and deferred. Earlier AKS inventory and plan evidence below are historical; this milestone supersedes that sequence.
 
 This root owns `rg-ai-platform-poc` and the optional platform module: AKS networking/runtime, ACR, APIM, Foundry/model/filter/project, identities/RBAC, Application Insights and Log Analytics. Bootstrap storage and pipeline identity remain outside Terraform ownership.

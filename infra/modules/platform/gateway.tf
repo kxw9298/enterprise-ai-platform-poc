@@ -6,7 +6,7 @@ resource "azurerm_api_management" "poc" {
   publisher_email      = var.publisher_email
   sku_name             = "Developer_1"
   virtual_network_type = "Internal"
-  virtual_network_configuration { subnet_id = azurerm_subnet.apim.id }
+  virtual_network_configuration { subnet_id = var.apim_subnet_id }
   identity { type = "SystemAssigned" }
   tags = var.tags
   timeouts {
@@ -14,13 +14,6 @@ resource "azurerm_api_management" "poc" {
     update = "120m"
     delete = "120m"
   }
-  depends_on = [azurerm_subnet_network_security_group_association.apim]
-}
-resource "azurerm_role_assignment" "gateway_model" {
-  scope                = azurerm_cognitive_account.foundry.id
-  role_definition_name = "Cognitive Services OpenAI User"
-  principal_id         = azurerm_api_management.poc.identity[0].principal_id
-  principal_type       = "ServicePrincipal"
 }
 resource "azurerm_role_assignment" "gateway_metrics" {
   scope                = azurerm_application_insights.poc.id
@@ -39,43 +32,8 @@ resource "azurerm_api_management_logger" "poc" {
   }
   depends_on = [azurerm_role_assignment.gateway_metrics]
 }
-resource "azurerm_api_management_api" "model" {
-  name                  = "model"
-  api_management_name   = azurerm_api_management.poc.name
-  resource_group_name   = var.resource_group_name
-  revision              = "1"
-  display_name          = "POC model gateway"
-  path                  = "models"
-  protocols             = ["https"]
-  subscription_required = false
-  service_url           = "https://${azurerm_cognitive_account.foundry.custom_subdomain_name}.openai.azure.com"
-}
-resource "azurerm_api_management_api_operation" "chat" {
-  operation_id        = "chat"
-  api_name            = azurerm_api_management_api.model.name
-  api_management_name = azurerm_api_management.poc.name
-  resource_group_name = var.resource_group_name
-  display_name        = "Chat completion"
-  method              = "POST"
-  url_template        = "/chat/completions"
-}
-resource "azurerm_api_management_api_policy" "model" {
-  api_name            = azurerm_api_management_api.model.name
-  api_management_name = azurerm_api_management.poc.name
-  resource_group_name = var.resource_group_name
-  xml_content = templatefile("${path.module}/policies/model.xml.tftpl", {
-    tenant_id           = var.tenant_id
-    audience            = var.api_audience
-    client_ids          = [for key in sort(keys(azurerm_user_assigned_identity.test_client)) : azurerm_user_assigned_identity.test_client[key].client_id]
-    deployment          = local.model_deployment
-    requests_per_minute = var.requests_per_minute
-    tokens_per_minute   = var.tokens_per_minute
-    daily_token_quota   = var.daily_token_quota
-  })
-  depends_on = [azurerm_role_assignment.gateway_model, azurerm_cognitive_deployment.chat]
-}
 resource "azurerm_api_management_api_diagnostic" "poc" {
-  for_each                  = { model = azurerm_api_management_api.model.name }
+  for_each                  = merge({ mcp = azurerm_api_management_api.mcp.name }, var.enable_foundry ? { model = module.foundry[0].api_name } : {})
   identifier                = "applicationinsights"
   api_name                  = each.value
   api_management_name       = azurerm_api_management.poc.name
@@ -91,40 +49,34 @@ resource "azurerm_api_management_api_diagnostic" "poc" {
   backend_request { body_bytes = 0 }
   backend_response { body_bytes = 0 }
 }
-
-# Deferred: enable with the AKS/MCP milestone, then review and run a new plan.
-# resource "azurerm_api_management_api" "mcp" {
-#   name                  = "mcp"
-#   api_management_name   = azurerm_api_management.poc.name
-#   resource_group_name   = var.resource_group_name
-#   revision              = "1"
-#   display_name          = "Internal AKS MCP"
-#   path                  = "mcp"
-#   protocols             = ["https"]
-#   subscription_required = false
-#   service_url           = "http://${local.mcp_ip}:8080"
-# }
-# resource "azurerm_api_management_api_operation" "mcp" {
-#   for_each            = toset(["GET", "POST", "DELETE"])
-#   operation_id        = lower(each.key)
-#   api_name            = azurerm_api_management_api.mcp.name
-#   api_management_name = azurerm_api_management.poc.name
-#   resource_group_name = var.resource_group_name
-#   display_name        = "MCP ${each.key}"
-#   method              = each.key
-#   url_template        = "/"
-# }
-# resource "azurerm_api_management_api_policy" "mcp" {
-#   api_name            = azurerm_api_management_api.mcp.name
-#   api_management_name = azurerm_api_management.poc.name
-#   resource_group_name = var.resource_group_name
-#   xml_content = templatefile("${path.module}/policies/mcp.xml.tftpl", {
-#     tenant_id  = var.tenant_id
-#     audience   = var.api_audience
-#     client_ids = var.allowed_client_ids
-#   })
-# }
-#
-# # When enabling MCP, add mcp = azurerm_api_management_api.mcp.name to the
-# # existing diagnostic for_each map. Review the model client allowlist to add
-# # approved MCP workload identities alongside, or instead of, test clients.
+resource "azurerm_api_management_api" "mcp" {
+  name                  = "mcp"
+  api_management_name   = azurerm_api_management.poc.name
+  resource_group_name   = var.resource_group_name
+  revision              = "1"
+  display_name          = "Internal AKS MCP"
+  path                  = "mcp"
+  protocols             = ["https"]
+  subscription_required = false
+  service_url           = "http://${local.mcp_ip}:8080"
+}
+resource "azurerm_api_management_api_operation" "mcp" {
+  for_each            = toset(["GET", "POST", "DELETE"])
+  operation_id        = lower(each.key)
+  api_name            = azurerm_api_management_api.mcp.name
+  api_management_name = azurerm_api_management.poc.name
+  resource_group_name = var.resource_group_name
+  display_name        = "MCP ${each.key}"
+  method              = each.key
+  url_template        = "/"
+}
+resource "azurerm_api_management_api_policy" "mcp" {
+  api_name            = azurerm_api_management_api.mcp.name
+  api_management_name = azurerm_api_management.poc.name
+  resource_group_name = var.resource_group_name
+  xml_content = templatefile("${path.module}/policies/mcp.xml.tftpl", {
+    tenant_id  = var.tenant_id
+    audience   = var.api_audience
+    client_ids = var.allowed_client_ids
+  })
+}

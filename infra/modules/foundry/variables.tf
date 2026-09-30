@@ -10,12 +10,14 @@ variable "suffix" { type = string }
 locals { name = "aipoc-${var.suffix}" }
 variable "tenant_id" { type = string }
 variable "api_audience" { type = string }
-variable "publisher_email" { type = string }
 variable "apim_subnet_id" { type = string }
-variable "dns_vnet_ids" { type = map(string) }
-variable "enable_foundry" { type = bool }
-variable "allowed_client_ids" { type = list(string) }
+variable "gateway_principal_id" { type = string }
+variable "gateway_name" { type = string }
 variable "requests_per_minute" { type = number }
 variable "tokens_per_minute" { type = number }
 variable "daily_token_quota" { type = number }
-locals { mcp_ip = "10.45.0.10" }
+locals {
+  model_name       = "gpt-4.1-mini"
+  model_version    = "2025-04-14"
+  model_deployment = "poc-chat"
+}

@@ -6,11 +6,11 @@ This file is the entry point for any coding agent continuing this POC, including
 
 The eventual goal is Copilot Studio → APIM → internal MCP hosted on AKS, with APIM also serving as an AI model gateway and attributing tokens and estimated costs per client. Keep a simplified enterprise-style landing zone that can be spun up and torn down to save money.
 
-**Current first milestone:** enable a Foundry LLM, access it through internal APIM with authenticated client IDs, and validate content safety, per-client token/cost tracking, request throttling and token quotas. AKS is not needed for this milestone.
+**Current milestone:** test Standard Copilot Studio → private APIM in the hub → sample MCP on AKS in a spoke. Use one Terraform root/state, two dedicated Power Platform spokes (East US/West US), and minimal paid workloads. Foundry and Bastion are retained as optional local modules, disabled by default. See [the current runbook](docs/runbooks/mcp-private-network.md); older model-first checkpoints below are historical.
 
-- Keep one region (East US), avoid Premium tiers where practical, and explain idle costs.
-- Keep APIM internal; test from a private jump VM through Bastion.
-- Preserve deferred AKS/ACR/MCP Terraform as commented-out code with explanatory notes. Do not delete it or enable it incidentally.
+- Keep paid workloads in East US; the required West US Power Platform spoke is the regional exception. Avoid Premium tiers where practical and explain idle costs.
+- Keep APIM internal. Optional Bastion/jump access is disabled by default; private AKS deployment requires an in-VNet runner or equivalent access.
+- Preserve optional/deferred Terraform code with explanatory notes. The user has now authorized preparing active AKS/ACR/MCP code for this milestone; Foundry remains optional and API-key attribution remains deferred.
 - Explain steps plainly; the user wants to understand the resources and identity flow.
 - Python is acceptable. Do not rewrite working scripts just to change language.
 - Never commit secrets, tokens, private SSH keys, Terraform state, saved plans or local configuration. Tenant/subscription/client IDs are identifiers, not credentials.
@@ -26,7 +26,7 @@ This preference supersedes older documents describing Entra client ID as the fin
 
 ## Read next
 
-1. [Current milestone and test sequence](docs/runbooks/model-gateway-first.md) — authoritative current scope.
+1. [Current milestone and test sequence](docs/runbooks/mcp-private-network.md) — authoritative current scope.
 2. [Cost decisions](docs/architecture/cost-review.md).
 3. [Terraform pipeline](docs/runbooks/terraform-pipeline.md) and [bootstrap/cleanup](docs/runbooks/bootstrap.md).
 4. [Architecture](docs/architecture/README.md) and [decisions](docs/decisions/) for longer-term intent.
@@ -150,7 +150,7 @@ Still in `rg-ai-platform-poc`, all at **$0**: the VNet, the APIM network securit
 
 Pending local cleanup: `~/Downloads/poc-jump.pem` is a browsable copy of the Bastion private key. The server-side key was removed with the VM; delete this file.
 
-## Next work, in order
+## Historical model-first next steps (superseded by current revision)
 
 1. Inspect `git status`, recent commits and the latest user request. Confirm actual Azure state and GitHub configuration without printing credentials.
 2. Configure the one-time Entra API app registration when authorized, following the milestone runbook. Check for an existing app first to avoid duplicates. No client secret is needed. It is separate from the GitHub OIDC application and persists outside Terraform; cleanup is documented.
@@ -163,9 +163,9 @@ Pending local cleanup: `~/Downloads/poc-jump.pem` is a browsable copy of the Bas
 
 ## Files and validation commands
 
-- Active root: `infra/poc`; module: `infra/modules/platform`.
+- Active root: `infra/poc`; local modules: network, platform, mcp-runtime, foundry and admin-access.
 - Workflow: `.github/workflows/terraform-poc.yml` (manual dispatch on main).
-- Deferred code: commented `aks.tf`, MCP blocks in `gateway.tf`, subnet, variables, inputs and outputs. Re-enable together, then revise `scripts/ci/platform-resources.json`, provider preflight, authorization and documentation.
+- Active MCP infrastructure is in `mcp-runtime` and `platform`; historical AKS comments remain for reference. Foundry and admin access are optional modules, disabled by default.
 - Local tools at checkpoint: `.local/tools/terraform/1.16.4/terraform`; AzureRM lockfile pins 5.7.0. Use the pinned version, not an older system Terraform.
 
 From the repository root (after installing/initializing dependencies when on a new machine):
@@ -201,3 +201,11 @@ Before ending a session, update this checkpoint when scope or state changes. Rec
 User confirmed environment `Default-eb241c67-e72d-4862-ae41-7686706624c4`, United States, Default type, and Managed Environments enabled after adding Dataverse/trial signup. Uses Standard agent `MCP Test Agent`; account has Power Automate Free and Copilot Studio Viral Trial. Publishing is unavailable; target is test-panel private MCP connectivity.
 
 Prepared `infra/power-platform` as a separate persistent network foundation: two regional VNets/subnets and an enterprise policy, separate `power-platform.tfstate`. Nothing deployed or linked. Read its README for scope, permissions and teardown. Workload peering/private DNS, dedicated workflow and environment association remain to be implemented before a live test. This integration requires East US and West US; the one-region preference continues to apply to paid workload services. Do not re-enable AKS/MCP or implement API-key reporting incidentally.
+
+## Current code revision: private MCP hub-and-spoke
+
+The user requested code changes first, minimal cost, one root/state, hub APIM with AKS and two Power Platform spokes. `infra/poc` is now the sole active root. `module.network` persists through down; optional `platform.foundry` defaults false and optional `admin_access` defaults false. AKS/ACR code is active in `mcp_runtime`, controlled by enable_mcp_runtime and enable_platform; older comments are retained as reference. This supersedes the separate-root preparation and the old AKS-deferred scope. API-key reporting is still deferred.
+
+Read [current MCP networking runbook](docs/runbooks/mcp-private-network.md) before proceeding. No apply, registration, environment linking or permission changes are authorized by this code-only turn. New role delegation, missing APIM purge read permission, private AKS deployment-runner access, quota/surge and the MCP image/application pipeline remain prerequisites. Do not claim this code deploys an MCP application or proves Copilot connectivity.
+
+Refactor validation (2026-09-29): Azure-backed plan passed scope guard with 37 additions, 1 in-place hub address-space update and 0 destroys. Four old hub addresses map to module.network via moved blocks. Inventory verified four VNets, six peering directions, four APIM DNS links, private AKS API, two D4s_v7 nodes, and no default Foundry/Bastion/jump VM/NAT. This is a NEW 37-resource plan, not the historical external-APIM plan. Five mocked lifecycle tests, schema validation, rendered-policy and plan-guard tests passed. No apply performed.

@@ -1,3 +1,4 @@
+# Historical reference only. Active AKS resources are now in ../mcp-runtime, gated by enable_mcp_runtime.
 # Deferred AKS/MCP infrastructure: retained for the later runtime milestone.
 # Entire file is commented out so the Foundry/APIM milestone creates none of these resources.
 # Restore the companion subnet, variables, module inputs, outputs and MCP gateway

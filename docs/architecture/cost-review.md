@@ -1,5 +1,7 @@
 # Single-region POC cost review
 
+**Current code:** [Private MCP hub-and-spoke](../runbooks/mcp-private-network.md). One root/state; network persists during down; Foundry and Bastion default off. Earlier inventories below are historical.
+
 **Current first milestone:** [Foundry + internal APIM model gateway](../runbooks/model-gateway-first.md), with two secretless test-client IDs, content filtering, request/token limits and per-client cost reporting. AKS/ACR/MCP are removed from the active Terraform root and deferred. Earlier AKS inventory and plan evidence below are historical; this milestone supersedes that sequence.
 
 User direction: preserve enterprise-style internal APIM access, use non-premium tiers where possible, and keep one region. This review prepares configuration; it is not a price quote or proof of available VM capacity.

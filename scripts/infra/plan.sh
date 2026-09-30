@@ -15,7 +15,7 @@ esac
 if [[ -z "${TF_VAR_jump_ssh_public_key:-}" && -f "$ROOT/.local/ssh/poc-jump.pub" ]]; then
   export TF_VAR_jump_ssh_public_key="$(cat "$ROOT/.local/ssh/poc-jump.pub")"
 fi
-: "${TF_VAR_jump_ssh_public_key:?Set the jump VM SSH PUBLIC key}"
+# SSH key is only required when enable_admin_access=true.
 export TF_VAR_subscription_id="$(jq -r .AZURE_SUBSCRIPTION_ID "$ROOT/.local/bootstrap/github-variables.json")"
 export ARM_SUBSCRIPTION_ID="$TF_VAR_subscription_id"
 export ARM_TENANT_ID="$(jq -r .AZURE_TENANT_ID "$ROOT/.local/bootstrap/github-variables.json")"

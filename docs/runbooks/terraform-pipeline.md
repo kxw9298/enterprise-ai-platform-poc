@@ -1,5 +1,7 @@
 # Terraform POC pipeline
 
+**Current code:** [Private MCP hub-and-spoke](mcp-private-network.md). One root/state; network persists during down; Foundry and Bastion default off. Earlier inventories below are historical.
+
 The [Terraform POC workflow](../../.github/workflows/terraform-poc.yml) manages the [foundation root](../../infra/poc/README.md). The root now includes the optional Foundry/internal-APIM platform. See [model gateway milestone](model-gateway-first.md) for the current resource inventory, prerequisites, and down/recreate procedure. The historical resource-group-only deployment evidence below predates this expansion.
 
 ## Prerequisites

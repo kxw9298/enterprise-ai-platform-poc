@@ -1,3 +1,4 @@
+mock_provider "azapi" {}
 mock_provider "azurerm" {
   mock_data "azurerm_client_config" {
     defaults = {
@@ -24,19 +25,40 @@ run "up_includes_platform" {
 run "private_access_and_cost_defaults" {
   command = plan
   assert {
-    condition     = module.platform[0].connection_details.apim_network_mode == "Internal" && module.platform[0].connection_details.bastion_sku == "Basic"
-    error_message = "APIM must stay internal and Bastion must not default to a premium tier."
+    condition     = module.platform[0].connection_details.apim_network_mode == "Internal" && length(module.admin_access) == 0 && !module.platform[0].connection_details.foundry_enabled
+    error_message = "APIM must stay internal; Foundry and admin compute must be off by default."
   }
   assert {
-    condition     = module.platform[0].connection_details.region == "eastus" && !module.platform[0].connection_details.admin_egress_enabled
-    error_message = "Keep one region and no paid admin NAT gateway by default."
+    condition     = length(module.mcp_runtime) == 1 && var.aks_node_size == "Standard_D4s_v7" && !var.enable_jump_egress
+    error_message = "Use the minimum-size four-vCPU AKS SKU and no paid admin NAT gateway by default."
   }
 }
 run "down_retains_foundation" {
   command = plan
   variables { enable_platform = false }
   assert {
-    condition     = length(module.platform) == 0 && azurerm_resource_group.poc.name == "rg-ai-platform-poc"
+    condition     = length(module.platform) == 0 && length(module.mcp_runtime) == 0 && length(module.admin_access) == 0 && length(module.network.dns_vnet_ids) == 4
     error_message = "Down must remove the whole platform module while retaining the group."
+  }
+}
+
+run "foundry_can_be_enabled" {
+  command = plan
+  variables { enable_foundry = true }
+  assert {
+    condition     = module.platform[0].connection_details.foundry_enabled
+    error_message = "Foundry must be available without uncommenting resources."
+  }
+}
+
+run "optional_admin_and_foundry" {
+  command = plan
+  variables {
+    enable_foundry      = true
+    enable_admin_access = true
+  }
+  assert {
+    condition     = length(module.admin_access) == 1 && module.platform[0].connection_details.foundry_enabled
+    error_message = "Optional admin and Foundry modules must remain compatible."
   }
 }

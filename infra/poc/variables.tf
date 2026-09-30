@@ -9,7 +9,7 @@ variable "subscription_id" {
 }
 
 variable "enable_platform" {
-  description = "False removes paid platform resources but retains the POC group and external bootstrap."
+  description = "False removes workloads but retains persistent network integration and the POC group."
   type        = bool
   default     = true
 }
@@ -34,10 +34,11 @@ variable "api_audience" {
 }
 
 variable "jump_ssh_public_key" {
+  default     = ""
   description = "SSH public key for Bastion access to the jump VM. Never pass the private key."
   type        = string
   validation {
-    condition     = can(regex("^(ssh-ed25519|ssh-rsa) [A-Za-z0-9+/=]+", trimspace(var.jump_ssh_public_key)))
+    condition     = !var.enable_admin_access || can(regex("^(ssh-ed25519|ssh-rsa) [A-Za-z0-9+/=]+", trimspace(var.jump_ssh_public_key)))
     error_message = "Provide an OpenSSH public key, not a private key."
   }
 }
@@ -83,28 +84,35 @@ variable "daily_token_quota" {
   }
 }
 
-# Deferred: enable with the AKS/MCP milestone, then review and run a new plan.
-# variable "aks_admin_object_id" {
-#   description = "Entra object ID of the operator granted AKS RBAC Cluster Admin."
-#   type        = string
-#   validation {
-#     condition     = can(regex("^[a-fA-F0-9-]{36}$", var.aks_admin_object_id))
-#     error_message = "Provide the administrator object UUID."
-#   }
-# }
-#
-# variable "allowed_client_ids" {
-#   description = "Explicit Entra application client IDs allowed to call MCP; empty means deny all."
-#   type        = list(string)
-#   default     = []
-#   validation {
-#     condition     = alltrue([for id in var.allowed_client_ids : can(regex("^[a-fA-F0-9-]{36}$", id))])
-#     error_message = "Client IDs must be UUIDs."
-#   }
-# }
-#
-# variable "aks_node_size" {
-#   description = "CPU system node SKU. Recheck subscription restrictions and core quota before apply."
-#   type        = string
-#   default     = "Standard_D2s_v7"
-# }
+
+variable "enable_foundry" {
+  type        = bool
+  default     = false
+  description = "Retained model module; disabled for the MCP connectivity milestone."
+}
+variable "enable_mcp_runtime" {
+  type    = bool
+  default = true
+}
+variable "enable_admin_access" {
+  type    = bool
+  default = false
+}
+variable "aks_admin_object_id" {
+  type    = string
+  default = null
+}
+variable "aks_node_size" {
+  type        = string
+  default     = "Standard_D4s_v7"
+  description = "Two 4-vCPU system nodes; verify availability and upgrade-surge quota before apply."
+}
+variable "allowed_client_ids" {
+  type        = list(string)
+  default     = []
+  description = "Trusted Entra caller apps for MCP; empty denies all. API-key reporting remains deferred."
+  validation {
+    condition     = alltrue([for id in var.allowed_client_ids : can(regex("^[a-fA-F0-9-]{36}$", id))])
+    error_message = "Client IDs must be UUIDs."
+  }
+}
