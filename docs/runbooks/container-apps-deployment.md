@@ -17,11 +17,11 @@ Prepared code only: no infrastructure apply, permission changes or image publica
 
 App ingress is `external_enabled=true` to allow APIM outside the Container Apps environment, but the environment itself is internal-only. No private endpoint is created, and no customer NAT, Bastion or AKS node is enabled. Platform-managed networking, ACR Basic, APIM and telemetry can incur charges even when the app scales to zero. Scaling/revision overlap is not an exact spending cap.
 
-## Prerequisites still pending
+## Prerequisites
 
-Microsoft.App is registered; East US environment count is 1 allowed / 0 used at the last check. Consumption-core quota is per environment and must be inspected after it exists (including headroom for revision overlap). Registration does not prove actual regional capacity.
+**Resolved 2026-09-30.** `Microsoft.App`, `Microsoft.ContainerRegistry` and `Microsoft.PowerPlatform` are all Registered. The `AI POC Deleted Service Purge` role carries the location-scoped `Microsoft.ApiManagement/locations/deletedServices/read` at its unchanged subscription scope, and the existing conditioned RG delegation now allows **AcrPull for ServicePrincipal recipients only** alongside the two pre-existing roles, still constraining both write and delete. `scripts/bootstrap/prepare-mcp.py --apply` performed these; review mode makes no changes, and unexpected scopes or conditions fail closed. The old AKS expansion requires explicit `--runtime aks`. `preflight.sh` now passes for `plan`, `down`, `destroy` and `apply`. See the deployment checkpoint for records and for two script bugs this surfaced.
 
-Before a paid apply, resolve the still-pending Microsoft.ContainerRegistry and Microsoft.PowerPlatform registrations and the missing APIM purge read permission. Extend existing conditioned RG delegation with **AcrPull for ServicePrincipal recipients only** for the app identity. `scripts/bootstrap/prepare-mcp.py` now defaults to the narrower `--runtime container-apps`; review mode makes no changes. The old AKS expansion requires explicit `--runtime aks`. Existing unexpected conditions fail closed. No new grants were made in this turn.
+East US environment count is 1 allowed / 0 used at the last check. Consumption-core quota is per environment and must be inspected after it exists (including headroom for revision overlap). Registration does not prove actual regional capacity.
 
 The pipeline also needs subscription-scoped **Microsoft.App/locations/usages/read** to run the regional quota preflight. Its original bootstrap subscription-reader actions do not include this provider-specific action. Review a narrowly scoped read grant before apply; RG Contributor alone does not cover this subscription-level query.
 

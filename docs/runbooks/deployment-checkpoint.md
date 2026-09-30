@@ -22,13 +22,18 @@ Condition syntax reference: [Microsoft conditional role delegation examples](htt
 
 All seven required providers are registered. East US regional and StandardDsv7Family quotas each report four available vCPUs; the jump VM requests two. The secretless API registration and GitHub audience variable are configured, as are the conditioned RG delegation and subscription purge assignments. Azure rejected the old APIM action name; the supported permission is `Microsoft.ApiManagement/locations/deletedservices/delete`, now corrected in preflight.
 
-**Known defect, found 2026-09-29 during teardown.** The custom role `AI POC Deleted Service Purge` grants `Microsoft.ApiManagement/deletedservices/read`, the old subscription-scoped name, but Terraform's purge step calls `Microsoft.ApiManagement/locations/deletedServices/read`. The `down` run therefore destroyed the APIM service and then failed with `403 AuthorizationFailed` on the purge. `preflight.sh` did not catch it because it checked only the two `delete` actions and never the `read` actions. Fix before the next `down` or `destroy`:
+**Defect found 2026-09-29 during teardown; fixed 2026-09-30.** The custom role `AI POC Deleted Service Purge` granted `Microsoft.ApiManagement/deletedservices/read`, the old subscription-scoped name, but Terraform's purge step calls `Microsoft.ApiManagement/locations/deletedServices/read`. The `down` run therefore destroyed the APIM service and then failed with `403 AuthorizationFailed` on the purge. `preflight.sh` did not catch it because it checked only the two `delete` actions and never the `read` actions. The correction, applied through `scripts/bootstrap/prepare-mcp.py --apply`:
 
-1. Add `Microsoft.ApiManagement/locations/deletedServices/read` to the role definition, and keep the existing Cognitive Services `deletedAccounts/read` (that one is already location-scoped).
-2. Keep the existing role assignment: it references the updated definition. Allow RBAC propagation, then start a fresh pipeline login and verify effective permissions.
-3. `preflight.sh` now checks all four read and delete actions, so it will fail early until the role is corrected.
+1. `Microsoft.ApiManagement/locations/deletedServices/read` was appended to the role definition; the Cognitive Services `deletedAccounts/read` was already location-scoped and is unchanged.
+2. The role assignment was left in place. Azure custom role *definition* updates take effect immediately for every assignment referencing that role, so no re-assignment was required; only RBAC propagation and a fresh pipeline login were.
+3. The role now carries five actions at the unchanged subscription scope, with empty `notActions` and `dataActions`. `preflight.sh` passes for `plan`, `down`, `destroy` and `apply`.
 
-The role and assignment IDs are recorded in `.local/deployment-prerequisites/purge-definition.json` and `purge-assignment.json`. Granting the missing read is an RBAC change and needs explicit authorization.
+Two bugs in `prepare-mcp.py` surfaced only on the first real `--apply`, because review mode never builds the mutation payloads:
+
+- The purge payload used `Name`/`Id`/`IsCustom`. The Azure CLI lowercases first letters to `name`/`id`, but the update path requires **`roleName`** when an `id` is supplied, so it raised `KeyError: 'roleName'` before calling ARM. The payload now uses the SDK's own casing and dropped the unused `IsCustom` (the CLI hardcodes `type='CustomRole'`).
+- Verification read back immediately and asserted once, which fails against ARM's eventual consistency. It now polls, and also confirms provider registration converges instead of only advising a recheck.
+
+Both are covered by `tests/bootstrap/test_mcp_prerequisites.py` (`ApplyPayloadTests`), which asserts the payload schema, the ServicePrincipal-only condition, that only unregistered named providers are registered, and that a converged state issues no further writes.
 
 Records are in ignored `.local/deployment-prerequisites/`: `model-api.json`, `model-api-sp.json`, `delegation-definition.json`, `delegation-assignment.json`, `purge-definition.json`, and `purge-assignment.json`. On final retirement, after workload teardown and workflow shutdown, an authorized administrator can remove these exact assignments with `az role assignment delete --ids RECORDED_ID`, then the custom roles with `az role definition delete --name RECORDED_NAME_UUID`, then the API app with `az ad app delete --id RECORDED_APP_OBJECT_ID`. Verify each recorded identity and dependencies first. These records contain no client secret. Do not run cleanup while deployment is active.
 

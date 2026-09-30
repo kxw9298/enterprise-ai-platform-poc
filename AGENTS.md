@@ -8,6 +8,8 @@ The eventual goal is Copilot Studio → APIM → internal MCP hosted on AKS, wit
 
 **Current milestone — phase 1:** validate Standard Copilot Studio private connectivity to Azure through the delegated Power Platform networks and internal APIM. A private Container Apps module and sample MCP endpoint are now prepared, not deployed. Follow [the two-stage deployment runbook](docs/runbooks/container-apps-deployment.md). AKS is phase 2: code is preserved but `enable_mcp_runtime=false` by default in Terraform and GitHub Actions. Foundry, Bastion and API-key cost reporting remain deferred. Read [phase-one scope](docs/runbooks/phase-one-private-connectivity.md) first.
 
+**Status 2026-09-30: prerequisites cleared, nothing deployed.** `Microsoft.App`, `Microsoft.ContainerRegistry` and `Microsoft.PowerPlatform` are all Registered. The APIM purge role now carries the location-scoped `deletedServices/read`, and the RG-scoped ServicePrincipal-only delegation now includes `AcrPull`. `preflight.sh` passes for `plan`, `down`, `destroy` and `apply`. See [Approvals executed](#approvals-executed-2026-09-30) for exactly what changed. Still outstanding: the foundation-only apply (first billable step), publishing a real image digest, registry-scoped `AcrPush`, and per-environment consumption-core quota which is only checkable after the environment exists. Ingress stays as-is — see the ingress note below; do not add a private endpoint without a new decision.
+
 - Keep paid workloads in East US; the required West US Power Platform spoke is the regional exception. Avoid Premium tiers where practical and explain idle costs.
 - Keep APIM internal. Optional Bastion/jump access is disabled by default; private AKS deployment requires an in-VNet runner or equivalent access.
 - Preserve optional/deferred Terraform code with explanatory notes. AKS/ACR is now phase 2 and disabled by default; Foundry remains optional and API-key attribution remains deferred.
@@ -246,9 +248,45 @@ The first apply uses empty `mcp_image_digest`: foundation only, no fake MCP imag
 
 Sample service at services/mcp/connectivity uses official MCP SDK 2.2.0, locked transitive dependencies, stateless Streamable HTTP and only get_status. APIM authenticates and overwrites correlation ID; app ingress allows only APIM subnet, environment has public access disabled. Runtime Copilot authentication, actual ingress source IP and cold starts still require live validation.
 
-Read docs/runbooks/container-apps-deployment.md before applying. Pending approvals/prerequisites: ContainerRegistry/PowerPlatform registration, narrowed AcrPull delegation, APIM purge read correction, pipeline subscription-scoped Container Apps quota-read permission, and later registry-scoped AcrPush for image publication. prepare-mcp.py now defaults to container-apps (only AcrPull added); --runtime aks is explicit phase two. No grants, provider registrations, apply, image publication or environment association were made during this implementation turn.
+Read docs/runbooks/container-apps-deployment.md before applying. **Superseded 2026-09-30:** ContainerRegistry/PowerPlatform registration, the narrowed AcrPull delegation and the APIM purge read correction were all applied — see [Approvals executed](#approvals-executed-2026-09-30). Still pending: pipeline subscription-scoped Container Apps quota-read permission, and later registry-scoped AcrPush for image publication. prepare-mcp.py defaults to container-apps (only AcrPull added); `--runtime aks` is explicit phase two. During this implementation turn specifically, no grants, registrations, apply, image publication or environment association were made.
 
 Local validation: nine Terraform lifecycle tests, five real HTTP MCP tests, five prerequisite-script tests, rendered APIM policy and plan guards passed. Azure-backed plans: foundation 40 additions / 1 hub update / 0 destroys; app-enabled plan uses a synthetic digest for validation only (not an existing image). Docker CLI on this host failed before building; GitHub build-only validation is the intended container test.
 
 
 Container build verification: GitHub Actions [36719934403](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36719934403) succeeded at `4cf697d` with `publish=false`: Linux image build and in-container MCP smoke tests passed; no Azure login/push/apply. The initial dispatch exposed an unsupported runner context in job-level env; this was corrected by setting DOCKER_CONFIG after runner initialization. Foundation/app-enabled Azure plans were 40/41 additions respectively, 1 hub update, 0 destroys. The app-enabled plan used a synthetic test digest only; no deployable ACR image has been published yet. Local test server was stopped.
+
+## Approvals executed (2026-09-30)
+
+The user explicitly approved the ContainerRegistry/PowerPlatform registrations, the narrowed AcrPull delegation and the APIM purge read correction, and authorized execution. All three were applied with `scripts/bootstrap/prepare-mcp.py --apply` from the `~/Workspace/enterprise-ai-platform-poc` clone at `dbd5759`. Verified independently of the script's own checks:
+
+- `Microsoft.App`, `Microsoft.ContainerRegistry`, `Microsoft.PowerPlatform` all report Registered.
+- `AI POC Deleted Service Purge` carries five actions at the unchanged subscription scope, adding `Microsoft.ApiManagement/locations/deletedServices/read`. `notActions` and `dataActions` remain empty. The existing subscription-scope assignment was **not** recreated.
+- `AI POC Gateway Role Delegation` at `rg-ai-platform-poc` remains principalType ServicePrincipal and conditionVersion 2.0, now listing three role GUIDs: Monitoring Metrics Publisher, Cognitive Services OpenAI User and AcrPull. Both the write and delete clauses still constrain to ServicePrincipal.
+- `preflight.sh` exits 0 for `plan`, `down`, `destroy` and `apply`.
+
+No workload, ACR, environment or Power Platform resource was created. Still no billable resource in `rg-ai-platform-poc`.
+
+### Working-copy hazard, restated
+
+The canonical `~/Documents/ChatGPT/AI Platform POC` checkout became unreadable on this host (macOS TCC returns `Operation not permitted` for directory and file reads; metadata still resolves). All of the above was therefore done from `~/Workspace/enterprise-ai-platform-poc`, fast-forwarded to `origin/main` at `dbd5759` first. That clone has no `.local/`, so it has no pinned Terraform 1.16.4 and no `backend.hcl`; Terraform plan and apply were not run from it. Prefer the canonical path once access is restored. Both roots derive identical resource names from `sha256(subscription_id)`, so never run Terraform against the wrong copy.
+
+### `prepare-mcp.py` bugs found on first real apply
+
+Review mode passed and exited 0, but it never constructs the mutation payloads, so two defects only appeared under `--apply`:
+
+1. The purge role payload used `Name`/`Id`/`IsCustom`. `az role definition update` lowercases first letters, then requires **`roleName`** when an `id` is present, raising `KeyError: 'roleName'` before any ARM call. Fixed to the SDK's own casing; `IsCustom` was dropped because the CLI hardcodes `type='CustomRole'`.
+2. Verification read back once and asserted, which fails against ARM eventual consistency — the update had already landed. It now polls, and additionally confirms provider registration converges rather than only advising a recheck. `Microsoft.PowerPlatform` registration in particular took several minutes.
+
+Both are covered by new `ApplyPayloadTests` in `tests/bootstrap/test_mcp_prerequisites.py`, raising the suite from five tests to nine: payload schema, ServicePrincipal-only condition, only-unregistered-providers registration, and no further writes on an already-converged state.
+
+### Ingress decision (supersedes the private-endpoint discussion)
+
+The user asked to replace the Container Apps ingress with an Azure Private Endpoint. That was based on an incorrect premise in an earlier agent message, and the user then chose to **keep the existing internal-LB ingress**.
+
+`external_enabled = true` on an app inside an environment with `internal_load_balancer_enabled = true` and `public_network_access = "Disabled"` does **not** expose the app publicly. Per Microsoft's ingress documentation, that combination makes the app reachable from the virtual network through the environment's internal load balancer, and the environment has no public endpoint. The `10.42.4.0/27` ingress restriction is defence in depth, not the primary control. The DNS zone named after `default_domain` with a wildcard `*` A record to `static_ip_address` is also the documented pattern for a non-custom-domain internal environment.
+
+Do not add a `azurerm_private_endpoint` or switch the environment to external accessibility without a fresh decision. Environment accessibility cannot be changed after creation, so that remains the one genuine reason to revisit it later. If a private endpoint is ever added, the correct zone is `privatelink.{region}.azurecontainerapps.io` and the subresource is `managedEnvironment`; note the delegated workload subnet is `10.45.0.64/27`, the documented minimum, so a PE would want its own subnet rather than sharing it.
+
+### Next action
+
+Stop and ask before the foundation-only apply, since it is the first billable step. Foundation creates the ACR, which bills. After that: build and publish a real image digest, then re-run with that digest. Still outstanding as separate approvals: the pipeline's subscription-scoped Container Apps quota-read permission and registry-scoped `AcrPush` for publication.
