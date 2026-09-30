@@ -4,6 +4,7 @@ import argparse
 import json
 import pathlib
 import subprocess
+import time
 
 ROLES = [
     'Cognitive Services OpenAI User', 'Monitoring Metrics Publisher',
@@ -34,6 +35,17 @@ def condition(ids):
                 f"@{source}[Microsoft.Authorization/roleAssignments:PrincipalType] "
                 "StringEqualsIgnoreCase 'ServicePrincipal'))")
     return clause('write', 'Request') + ' AND ' + clause('delete', 'Resource')
+
+
+def poll(read, check, label, attempts=6, delay=10):
+    value = read()
+    for attempt in range(attempts):
+        if check(value):
+            return value
+        if attempt + 1 < attempts:
+            time.sleep(delay)
+            value = read()
+    raise SystemExit(f'{label} did not reflect the update after {attempts} attempts; recheck manually.')
 
 
 def main():
@@ -94,21 +106,28 @@ def main():
             az('provider', 'register', '--namespace', provider, *common)
     if PURGE_ACTION.lower() not in actual_actions:
         permission['actions'].append(PURGE_ACTION)
-        payload = {'Name': purge['roleName'], 'Id': purge['name'], 'IsCustom': True,
-                   'Description': purge['description'], 'Actions': permission['actions'],
-                   'NotActions': [], 'DataActions': [], 'NotDataActions': [], 'AssignableScopes': [sub]}
+        payload = {'roleName': purge['roleName'], 'id': purge['name'],
+                   'description': purge['description'], 'actions': permission['actions'],
+                   'notActions': [], 'dataActions': [], 'notDataActions': [], 'assignableScopes': [sub]}
         az('role', 'definition', 'update', '--role-definition', json.dumps(payload), *common)
     if assignment['condition'] != new_condition:
         assignment['condition'] = new_condition
         az('role', 'assignment', 'update', '--role-assignment', json.dumps(assignment), *common)
-    fresh = az('role', 'assignment', 'list', '--all', *common)
-    verified = only([r for r in fresh if r['id'] == assignment['id']], 'updated assignment')
-    assert verified['condition'] == new_condition
-    updated_purge = only(az('role', 'definition', 'list', '--name', purge['name'], *common), 'updated purge role')
-    assert PURGE_ACTION.lower() in {a.lower() for a in updated_purge['permissions'][0]['actions']}
-    for name, value in [('delegation-after', verified), ('purge-after', updated_purge)]:
+    verified = poll(lambda: only([r for r in az('role', 'assignment', 'list', '--all', *common)
+                                  if r['id'] == assignment['id']], 'updated assignment'),
+                    lambda a: a['condition'] == new_condition, 'updated assignment')
+    updated_purge = poll(lambda: only(az('role', 'definition', 'list', '--name', purge['name'], *common),
+                                      'updated purge role'),
+                         lambda r: PURGE_ACTION.lower() in {a.lower() for a in r['permissions'][0]['actions']},
+                         'updated purge role')
+    registration = poll(lambda: {p: az('provider', 'show', '--namespace', p, *common)['registrationState']
+                                for p in providers},
+                        lambda s: all(v == 'Registered' for v in s.values()),
+                        'provider registrations', attempts=30)
+    for name, value in [('delegation-after', verified), ('purge-after', updated_purge),
+                        ('providers-after', registration)]:
         (records / (name + '.json')).write_text(json.dumps(value, indent=2) + '\n')
-    print('Role updates verified. Provider registration may still be completing; recheck before apply.')
+    print('Role updates and provider registrations verified.')
 
 
 if __name__ == '__main__':
