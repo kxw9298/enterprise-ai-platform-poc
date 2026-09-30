@@ -31,14 +31,14 @@ References: [Power Platform VNet/DNS behavior](https://learn.microsoft.com/en-us
 
 - Terraform and GitHub Actions now default `enable_mcp_runtime=false`. That switch controls the preserved AKS/ACR module, not Container Apps. Explicitly opt in only for phase 2 after quota and permission review.
 - Existing persistent networking still includes the unoccupied workload spoke/reserved AKS subnet. Keeping that VNet does not provision AKS or VM nodes. It can host a separate delegated Container Apps subnet later.
-- Container Apps Consumption is the preferred small-runtime candidate, but its provider is unregistered and East US managed-environment quota returned zero before registration. Container Instances also returned zero Standard Cores. Do not claim either is eligible yet.
+- Container Apps Consumption is the preferred small runtime. On 2026-09-30, explicitly approved Microsoft.App registration completed (Registered); East US managed-environment quota now reports limit 1, used 0. The earlier zero was observed before registration. Per-environment consumption-core quota and deployment capacity remain unverified. Container Instances has not been registered or rechecked.
 - The APIM MCP API currently points at the reserved AKS address `10.45.0.10:8080`. With AKS disabled there is no backend there. Update that backend and DNS together with the chosen runtime; an infrastructure plan is not a functioning MCP service.
 - The caller allowlist defaults empty and denies all callers. Select the Copilot connection's Entra identity and audience before testing. Do not weaken authentication to bypass setup.
-- No provider/RBAC mutations, Power Platform association, workload provisioning or connectivity tests have occurred in this scope revision.
+- Only Microsoft.App provider registration has been performed, with explicit approval. No RBAC changes, Power Platform association, workload provisioning or connectivity tests have occurred in this scope revision.
 
 ## Next work in order
 
-1. Obtain the already-pending explicit approval for the narrow `Microsoft.App` provider registration, then recheck regional environment quota. Do not apply the old AKS-specific role-delegation expansion. If Container Apps remains unavailable, resolve runtime eligibility with the user before spending on APIM.
+1. Completed: register only `Microsoft.App` and recheck East US environment quota (1 allowed, 0 used). Do not apply the old AKS-specific role-delegation expansion. Verify environment compute quota and actual capacity during the subsequent deployment work.
 2. Prepare Terraform for an internal Container Apps Consumption environment and a tiny stateless MCP server (`get_status`), its image build/deployment path, private DNS and the APIM backend. Target 0.25 vCPU / 0.5 GiB, scale 0–1; validate revision and quota behavior. Preserve AKS code for phase 2.
 3. Review a fresh complete plan and the remaining scoped permissions/provider prerequisites. Provision the phase-one stack within explicit deployment authorization.
 4. Verify licensing and environment support, then associate the Power Platform environment with the enterprise network policy after reviewing the environment-wide effect and public dependencies.

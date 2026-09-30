@@ -1,5 +1,7 @@
 # Container Apps alternative to AKS
 
+**2026-09-30 update:** Microsoft.App registration was explicitly approved and completed. East US managed-environment quota is now **1 allowed / 0 used**. The pre-registration observations below are historical. No Container Apps environment has been created; compute quota and capacity are still unverified.
+
 **Latest scope:** [Phase 1: Copilot Studio private connectivity](../runbooks/phase-one-private-connectivity.md). AKS/ACR is preserved for phase 2 and disabled by default; the Container Apps alternative is not yet implemented or deployed.
 
 Status: proposed after the user requested a container-service alternative to the Free Trial AKS quota blocker. No runtime switch, provider registration or deployment has occurred. Keep the existing AKS Terraform module for future use; do not apply its current default while evaluating this alternative.
