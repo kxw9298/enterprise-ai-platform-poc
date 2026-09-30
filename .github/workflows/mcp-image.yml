@@ -21,13 +21,14 @@ jobs:
     env:
       PUBLISH: ${{ inputs.publish }}
       SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      DOCKER_CONFIG: ${{ runner.temp }}/mcp-docker-auth
     steps:
       - name: Check out this exact commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Isolate Docker credentials on the runner
+        run: echo "DOCKER_CONFIG=$RUNNER_TEMP/mcp-docker-auth" >> "$GITHUB_ENV"
       - name: Build Linux image
         run: docker build --platform linux/amd64 --label "org.opencontainers.image.revision=$GITHUB_SHA" -t mcp-connectivity:test services/mcp/connectivity
       - name: Test real MCP protocol in container
