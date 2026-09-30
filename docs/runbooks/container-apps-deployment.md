@@ -48,3 +48,9 @@ After down, recreate foundation with an empty image digest, rebuild/push the ima
 - [Container Apps quotas](https://learn.microsoft.com/en-us/azure/container-apps/quotas)
 - [Managed-identity registry pulls](https://learn.microsoft.com/en-us/azure/container-apps/managed-identity-image-pull)
 - [Official MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)
+
+## Validation checkpoint
+
+Nine mocked Terraform lifecycle tests, five real HTTP MCP tests, five prerequisite-script tests and policy/scope checks passed. Azure-backed plans against the existing state passed: foundation 40 additions / 1 update / 0 destroys; app-enabled 41 additions / 1 update / 0 destroys using a synthetic digest only. The update preserves and contracts the existing hub address space as previously reviewed. Neither plan was applied.
+
+GitHub [build-only run 36719934403](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36719934403) passed at `4cf697d`, building the Linux image and exercising HTTP MCP inside the container. Publish was false, so this run neither signed into Azure nor pushed an image. No actual ACR digest is available for deployment until the publish stage runs against the provisioned registry.
