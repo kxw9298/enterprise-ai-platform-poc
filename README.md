@@ -1,5 +1,7 @@
 # Enterprise AI Platform POC
 
+**Latest scope:** [Phase 1: Copilot Studio private connectivity](docs/runbooks/phase-one-private-connectivity.md). AKS/ACR is preserved for phase 2 and disabled by default; the Container Apps alternative is not yet implemented or deployed.
+
 **Current code:** [Private MCP hub-and-spoke](docs/runbooks/mcp-private-network.md). One root/state; network persists during down; Foundry and Bastion default off. Earlier inventories below are historical.
 
 A secure, Azure-centered enterprise AI platform proof of concept. This monorepo brings together architecture documentation, application code, infrastructure as code, deployment configuration, and operational scripts.

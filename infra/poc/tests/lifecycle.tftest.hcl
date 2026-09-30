@@ -29,8 +29,8 @@ run "private_access_and_cost_defaults" {
     error_message = "APIM must stay internal; Foundry and admin compute must be off by default."
   }
   assert {
-    condition     = length(module.mcp_runtime) == 1 && var.aks_node_size == "Standard_D4s_v7" && !var.enable_jump_egress
-    error_message = "Use the minimum-size four-vCPU AKS SKU and no paid admin NAT gateway by default."
+    condition     = length(module.mcp_runtime) == 0 && !var.enable_jump_egress
+    error_message = "Phase 1 must not create AKS/ACR or a paid admin NAT gateway."
   }
 }
 run "down_retains_foundation" {
@@ -60,5 +60,14 @@ run "optional_admin_and_foundry" {
   assert {
     condition     = length(module.admin_access) == 1 && module.platform[0].connection_details.foundry_enabled
     error_message = "Optional admin and Foundry modules must remain compatible."
+  }
+}
+
+run "phase_two_aks_is_preserved" {
+  command = plan
+  variables { enable_mcp_runtime = true }
+  assert {
+    condition     = length(module.mcp_runtime) == 1
+    error_message = "Phase 2 AKS must remain available behind its explicit switch."
   }
 }

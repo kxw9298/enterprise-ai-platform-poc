@@ -4,7 +4,10 @@ set -euo pipefail
 subscription=${TF_VAR_subscription_id:-${ARM_SUBSCRIPTION_ID:-}}
 [[ -n "$subscription" ]] || { echo 'Set TF_VAR_subscription_id.' >&2; exit 1; }
 failures=0
-for provider in Microsoft.Network Microsoft.Compute Microsoft.ApiManagement Microsoft.CognitiveServices Microsoft.OperationalInsights Microsoft.Insights Microsoft.ManagedIdentity Microsoft.ContainerService Microsoft.ContainerRegistry Microsoft.PowerPlatform; do
+providers=(Microsoft.Network Microsoft.Compute Microsoft.ApiManagement Microsoft.OperationalInsights Microsoft.Insights Microsoft.ManagedIdentity Microsoft.PowerPlatform)
+[[ "${TF_VAR_enable_foundry:-false}" != true ]] || providers+=(Microsoft.CognitiveServices)
+[[ "${TF_VAR_enable_mcp_runtime:-false}" != true ]] || providers+=(Microsoft.ContainerService Microsoft.ContainerRegistry)
+for provider in "${providers[@]}"; do
   state=$(az provider show --subscription "$subscription" --namespace "$provider" --query registrationState -o tsv)
   if [[ "$state" != Registered ]]; then
     printf 'NOT READY: provider %s is %s. Register before apply.\n' "$provider" "$state"
@@ -15,7 +18,7 @@ done
 # Check total limits so existing nodes do not make repeat applies fail. Other workloads
 # can consume this quota; review available capacity separately before apply.
 # This is read-only and intentionally fails closed if subscription usage is unavailable.
-if [[ "${OPERATION:-apply}" == apply && "${TF_VAR_enable_mcp_runtime:-true}" == true ]]; then
+if [[ "${OPERATION:-apply}" == apply && "${TF_VAR_enable_mcp_runtime:-false}" == true ]]; then
   usage=$(az vm list-usage --subscription "$subscription" --location eastus -o json)
   if ! jq -e '
     def quota($name): [.[] | select((.name.value | ascii_downcase) == $name) | (.limit | tonumber)] | if length == 1 then .[0] else -1 end;
@@ -56,5 +59,8 @@ if (( failures > 0 )); then
   echo "$failures prerequisite(s) missing; no changes made."
   exit 1
 fi
-echo 'Coarse provider and RBAC action checks passed. Conditions are NOT evaluated: the old gateway-only delegation is insufficient for AKS.'
-echo 'Review Network Contributor, Managed Identity Operator, AcrPull and optional AKS admin delegation; recheck available quota, capacity, prices and Copilot app registration before apply.'
+echo 'Coarse provider and RBAC action checks passed. Role-assignment conditions are NOT evaluated.'
+if [[ "${TF_VAR_enable_mcp_runtime:-false}" == true ]]; then
+  echo 'Phase 2: existing gateway-only delegation is insufficient for AKS. Review Network Contributor, Managed Identity Operator, AcrPull and optional AKS admin delegation.'
+fi
+echo 'Recheck runtime eligibility, available quota, capacity, prices and Copilot authentication before apply.'

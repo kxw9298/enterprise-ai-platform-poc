@@ -18,9 +18,9 @@ on:
         type: boolean
         default: false
       enable_mcp_runtime:
-        description: Enable AKS and ACR for MCP (requires quota and reviewed role delegation)
+        description: Phase 2 only - enable AKS and ACR (requires quota and reviewed role delegation)
         type: boolean
-        default: true
+        default: false
       enable_foundry:
         description: Enable optional Foundry model resources
         type: boolean

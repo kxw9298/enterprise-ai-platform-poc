@@ -1,5 +1,7 @@
 # Private MCP connectivity: current Terraform design
 
+**Latest scope:** [Phase 1: Copilot Studio private connectivity](phase-one-private-connectivity.md). AKS/ACR is preserved for phase 2 and disabled by default; the Container Apps alternative is not yet implemented or deployed.
+
 This supersedes the separate Power Platform root and the older model-first topology. Code preparation only; do not equate validation with deployment or a working MCP application.
 
 ## One root, one state
@@ -10,7 +12,7 @@ Run `infra/poc` using the existing `poc.tfstate` backend and default Terraform w
 | --- | --- | --- |
 | `network` | On: hub, three spokes, six peering directions, enterprise policy | Retained |
 | `platform` | On: internal APIM Developer, MCP API, private DNS, telemetry | Removed |
-| `mcp_runtime` | On: two-node AKS Free tier, ACR Basic, identities/RBAC | Removed |
+| `mcp_runtime` | Off: retained two-node AKS Free tier, ACR Basic, identities/RBAC for phase 2 | Removed if enabled |
 | `platform.foundry` | Off (`enable_foundry=false`): original Foundry/model/filter/API code retained | Removed if enabled |
 | `admin_access` | Off (`enable_admin_access=false`): original Bastion/jump VM code retained | Removed if enabled |
 

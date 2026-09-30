@@ -91,8 +91,9 @@ variable "enable_foundry" {
   description = "Retained model module; disabled for the MCP connectivity milestone."
 }
 variable "enable_mcp_runtime" {
-  type    = bool
-  default = true
+  description = "Phase 2 AKS/ACR runtime. Keep disabled for phase 1 Copilot private-connectivity validation."
+  type        = bool
+  default     = false
 }
 variable "enable_admin_access" {
   type    = bool

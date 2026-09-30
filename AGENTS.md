@@ -6,11 +6,11 @@ This file is the entry point for any coding agent continuing this POC, including
 
 The eventual goal is Copilot Studio → APIM → internal MCP hosted on AKS, with APIM also serving as an AI model gateway and attributing tokens and estimated costs per client. Keep a simplified enterprise-style landing zone that can be spun up and torn down to save money.
 
-**Current milestone:** test Standard Copilot Studio → private APIM in the hub → sample MCP on AKS in a spoke. Use one Terraform root/state, two dedicated Power Platform spokes (East US/West US), and minimal paid workloads. Foundry and Bastion are retained as optional local modules, disabled by default. See [the current runbook](docs/runbooks/mcp-private-network.md); older model-first checkpoints below are historical.
+**Current milestone — phase 1:** validate Standard Copilot Studio private connectivity to Azure through the delegated Power Platform networks and internal APIM. A small MCP endpoint on Container Apps is the preferred runtime candidate, subject to subscription eligibility. AKS is phase 2: code is preserved but `enable_mcp_runtime=false` by default in Terraform and GitHub Actions. Foundry, Bastion and API-key cost reporting remain deferred. Read [phase-one scope](docs/runbooks/phase-one-private-connectivity.md) first.
 
 - Keep paid workloads in East US; the required West US Power Platform spoke is the regional exception. Avoid Premium tiers where practical and explain idle costs.
 - Keep APIM internal. Optional Bastion/jump access is disabled by default; private AKS deployment requires an in-VNet runner or equivalent access.
-- Preserve optional/deferred Terraform code with explanatory notes. The user has now authorized preparing active AKS/ACR/MCP code for this milestone; Foundry remains optional and API-key attribution remains deferred.
+- Preserve optional/deferred Terraform code with explanatory notes. AKS/ACR is now phase 2 and disabled by default; Foundry remains optional and API-key attribution remains deferred.
 - Explain steps plainly; the user wants to understand the resources and identity flow.
 - Python is acceptable. Do not rewrite working scripts just to change language.
 - Never commit secrets, tokens, private SSH keys, Terraform state, saved plans or local configuration. Tenant/subscription/client IDs are identifiers, not credentials.
@@ -26,7 +26,7 @@ This preference supersedes older documents describing Entra client ID as the fin
 
 ## Read next
 
-1. [Current milestone and test sequence](docs/runbooks/mcp-private-network.md) — authoritative current scope.
+1. [Phase-one scope and acceptance checks](docs/runbooks/phase-one-private-connectivity.md) — authoritative current scope.
 2. [Cost decisions](docs/architecture/cost-review.md).
 3. [Terraform pipeline](docs/runbooks/terraform-pipeline.md) and [bootstrap/cleanup](docs/runbooks/bootstrap.md).
 4. [Architecture](docs/architecture/README.md) and [decisions](docs/decisions/) for longer-term intent.
@@ -219,3 +219,8 @@ Read-only GitHub OIDC plan [36652580935](https://github.com/kxw9298/enterprise-a
 ## Container-service alternative requested
 
 User asked to try Azure container services because AKS exceeds Free Trial VM quota. Read [runtime alternative](docs/architecture/container-runtime-alternative.md). Read-only East US checks found Container Apps managed-environment limit 0 with Microsoft.App NotRegistered; Container Instances Standard Cores 0 with its provider NotRegistered. Prefer small Consumption Container Apps with private VNet ingress, but recheck after explicitly approved Microsoft.App registration before claiming eligibility. No Terraform runtime changes or cloud mutations occurred. Do not execute the previously prepared AKS permission expansion for this alternative. Earlier automatic review rejected provider/RBAC mutations; obtain explicit approval for the narrowed registration, without working around that rejection.
+
+## Phase split confirmed
+
+The user explicitly moved AKS to phase 2 and made Copilot Studio private connectivity the phase-one goal. `enable_mcp_runtime` now defaults false in Terraform and workflow inputs; preflight no longer demands AKS providers/VM quota under that default. AKS/ACR code and explicit opt-in remain. Read `docs/runbooks/phase-one-private-connectivity.md`. The workload spoke remains reserved; no Container Apps implementation or real MCP endpoint exists yet. The APIM backend still needs to be changed from its reserved AKS address when the phase-one runtime is added. No cloud mutation or apply in this revision.
+Validation of phase split: six mocked lifecycle tests passed (including explicit phase-two AKS opt-in), scope-guard/policy checks passed, and an Azure-backed plan passed with 30 additions, 1 update and 0 destroys. Confirmed no module.mcp_runtime resources in plan. This is infrastructure scaffolding, not a complete runnable phase-one MCP deployment. A transient provider file-read timeout on the first test attempt cleared on retry.

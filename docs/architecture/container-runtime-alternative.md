@@ -1,5 +1,7 @@
 # Container Apps alternative to AKS
 
+**Latest scope:** [Phase 1: Copilot Studio private connectivity](../runbooks/phase-one-private-connectivity.md). AKS/ACR is preserved for phase 2 and disabled by default; the Container Apps alternative is not yet implemented or deployed.
+
 Status: proposed after the user requested a container-service alternative to the Free Trial AKS quota blocker. No runtime switch, provider registration or deployment has occurred. Keep the existing AKS Terraform module for future use; do not apply its current default while evaluating this alternative.
 
 ## Read-only subscription check (2026-09-29 local date)
