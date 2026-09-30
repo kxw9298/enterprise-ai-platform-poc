@@ -8,6 +8,25 @@ Copilot Studio → Power Platform delegated subnet (East US or West US) → peer
 
 Keep one Terraform root/state. Both Power Platform regional networks remain necessary for the United States environment. Keep Entra caller authentication and private DNS. No Foundry/model call, RAG, API-key cost reporting, Bastion, dedicated NAT or AKS is needed for this milestone. APIM and any runtime/telemetry still have costs; stop workloads after testing.
 
+## Private DNS and container networking decisions
+
+Use Azure-provided DNS on the Power Platform delegated VNets. After environment association, supported Copilot tool/connector calls execute through the delegated network and use that network's DNS configuration. This does not place the entire Copilot Studio service or the user's browser in our VNet.
+
+| Caller | Name to resolve | Private DNS zone links required |
+| --- | --- | --- |
+| Power Platform runtime in either regional spoke | APIM gateway hostname → APIM private IP | Both East US and West US Power Platform VNets |
+| APIM in the hub | Container App hostname → internal environment IP | Hub VNet; also workload VNet for local resolution |
+
+The existing `infra/modules/platform/dns.tf` already creates an exact APIM-hostname zone, an apex A record and resolution-only links to hub, workload and both Power Platform VNets. Do not create a broad `azure-api.net` zone that shadows other gateways. These are prepared Terraform resources, not evidence of deployed or tested DNS.
+
+VNet peering provides packet connectivity; private DNS zone links provide name resolution. Peering alone does not share private zones. No paid Azure DNS Private Resolver or custom DNS server is needed for this Azure-only design with Azure-provided DNS. The Container Apps environment zone/records must be added with its runtime module; they do not exist yet. Resolve endpoints by hostname so HTTPS certificate validation continues to work.
+
+For the selected internal Container Apps workload-profiles environment, Azure requires a VNet and a dedicated subnet, minimum `/27`, delegated to `Microsoft.App/environments`. Reuse the workload spoke with a separate subnet; do not share the APIM, reserved AKS or Power Platform delegated subnets. Multiple apps can share one Container Apps environment. Serverless compute does not remove these networking requirements.
+
+A container image registry is required, but ACR specifically is optional. If we choose ACR for our MCP image, extract it into a shared local module so phase-one Container Apps can use it without enabling phase-two AKS. Prefer managed-identity image pulls if ACR is chosen; do not add registry passwords. No registry selection, extraction or Container Apps deployment has been performed yet.
+
+References: [Power Platform VNet/DNS behavior](https://learn.microsoft.com/en-us/power-platform/admin/vnet-support-overview), [Azure Private DNS](https://learn.microsoft.com/en-us/azure/dns/private-dns-overview), [Container Apps subnet requirements](https://learn.microsoft.com/en-us/azure/container-apps/custom-virtual-networks), [supported image registries](https://learn.microsoft.com/en-us/azure/container-apps/containers).
+
 ## Current implementation boundary
 
 - Terraform and GitHub Actions now default `enable_mcp_runtime=false`. That switch controls the preserved AKS/ACR module, not Container Apps. Explicitly opt in only for phase 2 after quota and permission review.
