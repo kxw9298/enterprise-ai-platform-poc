@@ -72,3 +72,22 @@ The enterprise policy does NOT itself associate the Power Platform environment. 
 ## Verification of this revision
 
 On 2026-09-29, Terraform schema validation and five mocked lifecycle tests passed, including default Foundry-off, optional Foundry-on and workload-down behavior. Rendered policy and scope-guard tests passed. A fresh Azure-backed plan against the existing state passed the scope guard: **37 additions, 1 update, 0 destroys**. The update contracts the existing hub address space in place; moved blocks preserve its four existing Terraform resource identities. The plan confirms four VNets, six peering directions, four private DNS links, two 4-vCPU AKS nodes, no optional paid admin/NAT and no Foundry. Saved plans/logs remain ignored locally. No apply or Power Platform association occurred. This count is unrelated to the older 37-resource AKS plan from the model-first design.
+
+## Prerequisite check: 2026-09-29
+
+Live checks found FreeTrial_2014-09-01 with spending limit On, East US total regional vCPUs 0/4 and StandardDsv7Family 0/4. AKS requires 8 base / 12 including surge. No quota request or billing upgrade was made. Free Trial subscriptions cannot request quota increases: the account owner must decide whether to upgrade to pay-as-you-go, then request both East US limits at least 12. Upgrading changes billing exposure; review remaining credit and spending behavior in the portal. See [Microsoft subscription limits](https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/azure-subscription-service-limits) and [upgrade instructions](https://learn.microsoft.com/en-us/azure/cost-management-billing/manage/upgrade-azure-subscription).
+
+The three new providers were NotRegistered. Existing role delegation still permits only the two model-gateway roles, and the APIM purge read action is still missing. `scripts/bootstrap/prepare-mcp.py` reviews a narrow update to those existing resources:
+
+```bash
+python3 scripts/bootstrap/prepare-mcp.py \
+  --subscription a48d0557-360a-4849-8b56-a73b28f66aa6 \
+  --pipeline-object-id 124dede3-5033-431e-b267-9ef7e8eaeddf
+# After explicit approval of the changes, repeat with --apply.
+```
+
+The update registers ContainerService, ContainerRegistry and PowerPlatform; extends the existing delegation to Network Contributor, Managed Identity Operator and AcrPull for ServicePrincipal recipients only within `rg-ai-platform-poc`; and adds the missing location-scoped APIM read action to the existing subscription purge role. It does not add AKS administrator delegation, billing changes, quota changes, environment association or workload resources. The scope permits these roles for any service principal in the workload group, not just one future AKS identity.
+
+Automatic approval review blocked execution pending explicit approval of these persistent account/security changes. Only review mode has run successfully. No provider or RBAC mutations occurred. The script checks existing scopes and conditions, retains assignment IDs, and saves before/after records under ignored `.local/deployment-prerequisites/mcp-update/` on execution. Existing role assignments automatically reference an updated custom role definition; allow propagation rather than deleting/recreating them. Cleanup still follows the recorded exact assignment IDs and definitions in the deployment checkpoint. Provider registration is subscription-wide and is not automatically undone, because other workloads may use it.
+
+GitHub OIDC [plan 36652580935](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36652580935) passed at infrastructure commit `62b2767`. This verifies planning with the pipeline identity, not permission to create the new role assignments or available compute quota. Five prerequisite-script tests passed locally; run `python3 tests/bootstrap/test_mcp_prerequisites.py` to repeat them.

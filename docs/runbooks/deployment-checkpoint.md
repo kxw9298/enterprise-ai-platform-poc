@@ -25,7 +25,7 @@ All seven required providers are registered. East US regional and StandardDsv7Fa
 **Known defect, found 2026-09-29 during teardown.** The custom role `AI POC Deleted Service Purge` grants `Microsoft.ApiManagement/deletedservices/read`, the old subscription-scoped name, but Terraform's purge step calls `Microsoft.ApiManagement/locations/deletedServices/read`. The `down` run therefore destroyed the APIM service and then failed with `403 AuthorizationFailed` on the purge. `preflight.sh` did not catch it because it checked only the two `delete` actions and never the `read` actions. Fix before the next `down` or `destroy`:
 
 1. Add `Microsoft.ApiManagement/locations/deletedServices/read` to the role definition, and keep the existing Cognitive Services `deletedAccounts/read` (that one is already location-scoped).
-2. Re-assign the role; the definition change alone does not affect existing assignments.
+2. Keep the existing role assignment: it references the updated definition. Allow RBAC propagation, then start a fresh pipeline login and verify effective permissions.
 3. `preflight.sh` now checks all four read and delete actions, so it will fail early until the role is corrected.
 
 The role and assignment IDs are recorded in `.local/deployment-prerequisites/purge-definition.json` and `purge-assignment.json`. Granting the missing read is an RBAC change and needs explicit authorization.
