@@ -4,6 +4,10 @@ set -euo pipefail
 subscription=${TF_VAR_subscription_id:-${ARM_SUBSCRIPTION_ID:-}}
 [[ -n "$subscription" ]] || { echo 'Set TF_VAR_subscription_id.' >&2; exit 1; }
 failures=0
+# Terraform creates the workload group, so on a clean-slate apply it does not exist yet.
+# Group-scoped reads below must degrade instead of aborting under set -euo pipefail.
+workload_group=rg-ai-platform-poc
+group_exists=$(az group exists --subscription "$subscription" --name "$workload_group" --query value -o tsv)
 providers=(Microsoft.Network Microsoft.Compute Microsoft.ApiManagement Microsoft.OperationalInsights Microsoft.Insights Microsoft.ManagedIdentity Microsoft.PowerPlatform)
 [[ "${TF_VAR_enable_foundry:-false}" != true ]] || providers+=(Microsoft.CognitiveServices)
 [[ "${TF_VAR_enable_mcp_runtime:-false}" != true ]] || providers+=(Microsoft.ContainerService Microsoft.ContainerRegistry)
@@ -20,7 +24,11 @@ done
 if [[ "${OPERATION:-apply}" == apply && "${TF_VAR_enable_container_apps:-true}" == true ]]; then
   container_usage=$(az rest --method get --url "https://management.azure.com/subscriptions/$subscription/providers/Microsoft.App/locations/eastus/usages?api-version=2025-07-01" -o json)
   suffix=$(python3 -c 'import hashlib,sys; print(hashlib.sha256(sys.argv[1].encode()).hexdigest()[:8])' "$subscription")
-  existing=$(az resource list --subscription "$subscription" --resource-group rg-ai-platform-poc --resource-type Microsoft.App/managedEnvironments --query "[?name=='cae-aipoc-$suffix'].id" -o json)
+  # No group yet means no existing environment, which is the repeat-apply-safe case.
+  existing='[]'
+  if [[ "$group_exists" == true ]]; then
+    existing=$(az resource list --subscription "$subscription" --resource-group "$workload_group" --resource-type Microsoft.App/managedEnvironments --query "[?name=='cae-aipoc-$suffix'].id" -o json)
+  fi
   if [[ "$(jq length <<< "$existing")" == 0 ]] && ! jq -e 'any(.value[]; .name.value == "ManagedEnvironmentCount" and ((.limit | tonumber) - (.currentValue | tonumber)) >= 1)' <<< "$container_usage" >/dev/null; then
     echo 'NOT READY: no available Container Apps environment slot in East US.'
     failures=$((failures + 1))
@@ -43,7 +51,13 @@ if [[ "${OPERATION:-apply}" == apply && "${TF_VAR_enable_mcp_runtime:-false}" ==
 fi
 # Contributor deliberately excludes role assignment writes. Check the current
 # operator's effective permissions, including notActions, before a paid apply.
-permissions=$(az rest --method get --url "https://management.azure.com/subscriptions/$subscription/resourceGroups/rg-ai-platform-poc/providers/Microsoft.Authorization/permissions?api-version=2022-04-01" -o json)
+# Without the group there is no group-scoped delegation to evaluate, so fall back
+# to the subscription scope, which is strictly broader and therefore conservative.
+if [[ "$group_exists" == true ]]; then
+  permissions=$(az rest --method get --url "https://management.azure.com/subscriptions/$subscription/resourceGroups/$workload_group/providers/Microsoft.Authorization/permissions?api-version=2022-04-01" -o json)
+else
+  permissions=$(az rest --method get --url "https://management.azure.com/subscriptions/$subscription/providers/Microsoft.Authorization/permissions?api-version=2022-04-01" -o json)
+fi
 if ! jq -e '
   def matches($action): ascii_downcase as $p | $action | test("^" + ($p | split("*") | map(gsub("[.]"; "\\.")) | join(".*")) + "$");
   any(.value[];
