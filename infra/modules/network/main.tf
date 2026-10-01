@@ -122,8 +122,12 @@ resource "azurerm_subnet" "aks" {
   default_outbound_access_enabled = false
 }
 locals {
-  spokes      = merge({ aks = azurerm_virtual_network.aks.id }, { for k, v in azurerm_virtual_network.integration : k => v.id })
-  spoke_names = merge({ aks = azurerm_virtual_network.aks.name }, { for k, v in azurerm_virtual_network.integration : k => v.name })
+  # for_each keys must be provably static, so derive them from local.regions and a
+  # literal, never from resource attributes. Deriving them from apply-time values
+  # breaks `terraform import` and forces a two-step targeted apply.
+  spoke_keys  = concat(["aks"], sort(keys(local.regions)))
+  spokes      = { for k in local.spoke_keys : k => k == "aks" ? azurerm_virtual_network.aks.id : azurerm_virtual_network.integration[k].id }
+  spoke_names = { for k in local.spoke_keys : k => k == "aks" ? azurerm_virtual_network.aks.name : azurerm_virtual_network.integration[k].name }
 }
 resource "azurerm_virtual_network_peering" "hub_to_spoke" {
   for_each                     = local.spokes
