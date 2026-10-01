@@ -8,7 +8,9 @@ provider "azurerm" {
     # Requires an administrator or explicitly delegated purge permissions.
     api_management {
       purge_soft_delete_on_destroy = true
-      recover_soft_deleted         = false
+      # Recover a soft-deleted APIM during create so a retained name
+      # reservation is reused instead of blocking the apply.
+      recover_soft_deleted = true
     }
     cognitive_account { purge_soft_delete_on_destroy = true }
     log_analytics_workspace { permanently_delete_on_destroy = true }
