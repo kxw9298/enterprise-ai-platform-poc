@@ -8,7 +8,7 @@ on:
         type: choice
         required: true
         default: plan
-        options: [plan, apply, down-plan, down, destroy-plan, destroy]
+        options: [preflight, plan, apply, down-plan, down, destroy-plan, destroy]
       reviewed_commit:
         description: Full commit SHA from the reviewed plan (required for apply/down/destroy)
         type: string
@@ -93,7 +93,7 @@ jobs:
         run: |
           set -euo pipefail
           case "$OPERATION" in
-            plan|down-plan|destroy-plan) ;;
+            preflight|plan|down-plan|destroy-plan) ;;
             apply|down|destroy)
               [[ "$REVIEWED_COMMIT" == "$GITHUB_SHA" ]] || { echo '::error::Provide this exact commit SHA after reviewing its plan.'; exit 1; }
               ;;
@@ -136,10 +136,14 @@ jobs:
           terraform validate
 
       - name: Check apply prerequisites
-        if: inputs.operation == 'apply' || inputs.operation == 'down' || inputs.operation == 'destroy'
-        run: bash ../../scripts/infra/preflight.sh
+        if: inputs.operation == 'preflight' || inputs.operation == 'apply' || inputs.operation == 'down' || inputs.operation == 'destroy'
+        run: |
+          # Read-only preflight uses the same quota and permission checks as apply.
+          if [[ "$OPERATION" == preflight ]]; then export OPERATION=apply; fi
+          bash ../../scripts/infra/preflight.sh
 
       - name: Plan and check POC scope
+        if: inputs.operation != 'preflight'
         id: plan
         run: |
           set -euo pipefail

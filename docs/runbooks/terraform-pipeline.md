@@ -111,3 +111,18 @@ The Contributor assignment from `grant-workload.sh` must exist before group dele
 - Azure verification: `rg-ai-platform-poc` provisioned successfully in `eastus` with the expected tags; pipeline Contributor assignment scoped only to that group; `poc.tfstate` exists in the backend and its lease is released.
 - [Post-apply plan](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36427963407): succeeded and reported **No changes. Your infrastructure matches the configuration.**
 - Destroy operations are implemented but have not been executed.
+
+### Read-only apply readiness check
+
+Run `Terraform POC` with `operation=preflight` to exercise apply's provider,
+regional quota and effective permission checks using the GitHub OIDC identity.
+It initializes and validates Terraform but does not plan or apply resources.
+Use the same runtime flags as the intended apply. A pass proves coarse readiness,
+not regional provisioning capacity or role-assignment condition correctness.
+
+`az group exists` returns a scalar boolean. Querying a nonexistent `value` field
+returns empty output and incorrectly selects subscription-level permission checks,
+ignoring valid resource-group delegation. Preflight now validates the boolean
+explicitly. After full destroy, recreate the foundation group and restore its
+scoped grants through the documented bootstrap sequence; this check never grants
+subscription-wide role administration to work around missing delegation.

@@ -7,7 +7,12 @@ failures=0
 # Terraform creates the workload group, so on a clean-slate apply it does not exist yet.
 # Group-scoped reads below must degrade instead of aborting under set -euo pipefail.
 workload_group=rg-ai-platform-poc
-group_exists=$(az group exists --subscription "$subscription" --name "$workload_group" --query value -o tsv)
+# `group exists` returns a scalar boolean, not an object with a `value` field.
+group_exists=$(az group exists --subscription "$subscription" --name "$workload_group" -o tsv)
+case "$group_exists" in
+  true|false) ;;
+  *) echo 'NOT READY: could not determine whether the workload group exists.' >&2; exit 1 ;;
+esac
 providers=(Microsoft.Network Microsoft.Compute Microsoft.ApiManagement Microsoft.OperationalInsights Microsoft.Insights Microsoft.ManagedIdentity Microsoft.PowerPlatform)
 [[ "${TF_VAR_enable_foundry:-false}" != true ]] || providers+=(Microsoft.CognitiveServices)
 [[ "${TF_VAR_enable_mcp_runtime:-false}" != true ]] || providers+=(Microsoft.ContainerService Microsoft.ContainerRegistry)
