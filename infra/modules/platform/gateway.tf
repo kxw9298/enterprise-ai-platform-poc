@@ -92,7 +92,10 @@ resource "azurerm_api_management_api" "connectivity" {
   display_name          = "Private Connectivity Probe"
   path                  = "connectivity"
   protocols             = ["https"]
-  subscription_required = true
+  # The endpoint is already reachable only through the internal APIM gateway.
+  # Keep the first network probe keyless so Copilot Studio can test connectivity
+  # without introducing a secret into the connector configuration.
+  subscription_required = false
 }
 
 resource "azurerm_api_management_api_operation" "connectivity" {
