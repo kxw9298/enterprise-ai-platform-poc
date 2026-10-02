@@ -85,13 +85,13 @@ resource "azurerm_api_management_api_policy" "mcp" {
 # Minimal private-network probe. It has no backend so it isolates Power Platform
 # private connectivity from container, AKS, registry and model provisioning.
 resource "azurerm_api_management_api" "connectivity" {
-  name                  = "connectivity"
-  api_management_name   = azurerm_api_management.poc.name
-  resource_group_name   = var.resource_group_name
-  revision              = "1"
-  display_name          = "Private Connectivity Probe"
-  path                  = "connectivity"
-  protocols             = ["https"]
+  name                = "connectivity"
+  api_management_name = azurerm_api_management.poc.name
+  resource_group_name = var.resource_group_name
+  revision            = "1"
+  display_name        = "Private Connectivity Probe"
+  path                = "connectivity"
+  protocols           = ["https"]
   # The endpoint is already reachable only through the internal APIM gateway.
   # Keep the first network probe keyless so Copilot Studio can test connectivity
   # without introducing a secret into the connector configuration.
