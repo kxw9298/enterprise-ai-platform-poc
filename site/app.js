@@ -7,7 +7,8 @@ const pages = {
       <div class="callout"><strong>Validated result</strong><br>Copilot Studio tool <code>Check-private-connectivity</code> returned <code>{"network":"private","source":"internal-apim","status":"ok"}</code>.</div>
       <h2>Azure landing zone topology</h2>
       <p class="diagram-caption">The diagram uses an Azure architecture view: platform boundary on the left, Azure landing zone on the right, and separate data-plane and DNS flows.</p>
-      <div class="architect-diagram" role="img" aria-label="Architectural topology showing Copilot Studio, Power Platform VNet injection, private DNS and internal APIM in an Azure VNet">
+      <div class="architect-diagram approved-architecture" role="img" aria-label="Hub and spoke topology showing Copilot Studio, Power Platform VNet injection, private DNS and internal APIM">
+        <img class="architecture-image" src="assets/copilot-studio-hub-spoke.png" alt="Azure hub and spoke architecture with a central hub VNet, two Power Platform delegation spokes, and an APIM spoke" />
         <svg viewBox="0 0 980 430" xmlns="http://www.w3.org/2000/svg" aria-labelledby="diagram-title diagram-desc">
           <title id="diagram-title">Copilot Studio to internal Azure APIM topology</title><desc id="diagram-desc">A private HTTPS request crosses Power Platform VNet injection and peering into an Azure virtual network. Private DNS resolves the APIM hostname to a private address.</desc>
           <defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#1769aa"/></marker><filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#17324d" flood-opacity=".12"/></filter></defs>
