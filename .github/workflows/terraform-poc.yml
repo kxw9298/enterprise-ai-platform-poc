@@ -94,7 +94,7 @@ jobs:
           set -euo pipefail
           case "$OPERATION" in
             preflight|probe-plan|plan|down-plan|destroy-plan) ;;
-            apply|down|destroy)
+            apply|probe|down|destroy)
               [[ "$REVIEWED_COMMIT" == "$GITHUB_SHA" ]] || { echo '::error::Provide this exact commit SHA after reviewing its plan.'; exit 1; }
               ;;
             *) exit 1 ;;
