@@ -27,7 +27,9 @@ subscription for the test client; do not put the key in GitHub or this repo.
 ## Configure Copilot Studio
 
 In the Power Platform environment that is associated with the enterprise
-network policy, create a custom connector from this minimal OpenAPI document:
+network policy, create a custom connector by importing
+[copilot-connectivity-openapi.yaml](../connectors/copilot-connectivity-openapi.yaml).
+The file contains this endpoint and response:
 
 ```yaml
 openapi: 3.0.1

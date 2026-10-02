@@ -1,0 +1,28 @@
+openapi: 3.0.1
+info:
+  title: AI POC private connectivity probe
+  version: 1.0.0
+  description: Verifies Copilot Studio to internal Azure APIM connectivity.
+servers:
+  - url: https://apim-aipoc-247fda1b.azure-api.net
+paths:
+  /connectivity:
+    get:
+      operationId: getConnectivity
+      summary: Check private connectivity
+      description: Returns a static response from the internal APIM gateway.
+      responses:
+        '200':
+          description: Private connectivity confirmed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, source, network]
+                properties:
+                  status:
+                    type: string
+                  source:
+                    type: string
+                  network:
+                    type: string
