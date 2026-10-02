@@ -8,7 +8,7 @@ on:
         type: choice
         required: true
         default: plan
-        options: [preflight, plan, apply, down-plan, down, destroy-plan, destroy]
+        options: [preflight, probe-plan, probe, plan, apply, down-plan, down, destroy-plan, destroy]
       reviewed_commit:
         description: Full commit SHA from the reviewed plan (required for apply/down/destroy)
         type: string
@@ -93,7 +93,7 @@ jobs:
         run: |
           set -euo pipefail
           case "$OPERATION" in
-            preflight|plan|down-plan|destroy-plan) ;;
+            preflight|probe-plan|plan|down-plan|destroy-plan) ;;
             apply|down|destroy)
               [[ "$REVIEWED_COMMIT" == "$GITHUB_SHA" ]] || { echo '::error::Provide this exact commit SHA after reviewing its plan.'; exit 1; }
               ;;
@@ -149,6 +149,13 @@ jobs:
           set -euo pipefail
           flags=()
           case "$OPERATION" in destroy-plan|destroy) flags+=(-destroy);; down-plan|down) flags+=(-var=enable_platform=false);; esac
+          if [[ "$OPERATION" == probe-plan || "$OPERATION" == probe ]]; then
+            flags+=(
+              -target=module.platform[0].azurerm_api_management_api.connectivity
+              -target=module.platform[0].azurerm_api_management_api_operation.connectivity
+              -target=module.platform[0].azurerm_api_management_api_policy.connectivity
+            )
+          fi
           terraform plan -input=false -lock-timeout=5m -no-color "${flags[@]}" -out="$RUNNER_TEMP/poc.tfplan"
           terraform show -json "$RUNNER_TEMP/poc.tfplan" > "$RUNNER_TEMP/poc.tfplan.json"
           bash ../../scripts/ci/check-foundation-plan.sh "$RUNNER_TEMP/poc.tfplan.json" "$OPERATION"
@@ -162,7 +169,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Apply the saved plan
-        if: inputs.operation == 'apply' || inputs.operation == 'down' || inputs.operation == 'destroy'
+        if: inputs.operation == 'apply' || inputs.operation == 'probe' || inputs.operation == 'down' || inputs.operation == 'destroy'
         run: terraform apply -input=false -lock-timeout=5m -no-color "$RUNNER_TEMP/poc.tfplan"
 
       - name: Remove temporary plan files

@@ -3,7 +3,7 @@
 set -euo pipefail
 [[ $# == 2 ]] || { echo 'Usage: check-foundation-plan.sh PLAN_JSON OPERATION' >&2; exit 1; }
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-case "$2" in plan|apply|down-plan|down|destroy-plan|destroy) ;; *) exit 1;; esac
+case "$2" in plan|apply|probe-plan|probe|down-plan|down|destroy-plan|destroy) ;; *) exit 1;; esac
 jq -e --arg operation "$2" --slurpfile allowed "$ROOT/platform-resources.json" '
   .format_version == "1.2" and
   all((.resource_changes // [])[];
