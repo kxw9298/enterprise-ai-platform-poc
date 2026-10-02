@@ -56,3 +56,4 @@ Multi-cloud networking and self-hosted GPU inference are later extensions. The i
 # Validated phase-one architecture
 
 - [Copilot Studio to private Azure connectivity](private-connectivity-validation.md)
+- [Technical blog: Copilot Studio private connectivity to APIM](../blog/copilot-studio-private-connectivity-apim.md)
