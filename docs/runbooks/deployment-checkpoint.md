@@ -1,3 +1,44 @@
+# Deployment checkpoint: 2026-10-02
+
+## Phase-one private connectivity achieved
+
+The first connectivity milestone is complete. Terraform deployed an internal
+APIM connectivity probe through the targeted GitHub Actions operation
+[36953129328](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36953129328).
+The probe is the keyless `GET /connectivity` API and returns a static response;
+it has no Container Apps, AKS, ACR image, MCP server or Foundry dependency.
+
+The Power Platform environment's network injection policy then completed
+successfully. The live path was tested from Copilot Studio using the custom
+connector `AI POC Connectivity Probe v2`. Copilot Studio called the tool
+`Check-private-connectivity` and returned:
+
+```json
+{"network":"private","source":"internal-apim","status":"ok"}
+```
+
+This proves the following path:
+
+`Copilot Studio → Power Platform managed connector runtime → delegated Power Platform subnet → VNet peering/private DNS → internal APIM`
+
+Live Azure details:
+
+- APIM: `apim-aipoc-247fda1b`, Developer SKU, internal VNet mode, private IP `10.42.4.4`.
+- Private DNS zone: `apim-aipoc-247fda1b.azure-api.net`, apex A record `10.42.4.4`, linked to hub, East US Power Platform, West US Power Platform and workload VNets.
+- Enterprise policy: `ep-ai-poc-network`, United States geography, both delegated subnets, provisioning succeeded.
+- No MCP, A2A, model or container runtime behavior has been validated yet; those are later milestones.
+
+The standalone OpenAPI file used by the connector is
+[`docs/connectors/copilot-connectivity-openapi.yaml`](../connectors/copilot-connectivity-openapi.yaml).
+The implementation and setup instructions are in
+[`docs/runbooks/copilot-connectivity-probe.md`](copilot-connectivity-probe.md).
+
+The targeted probe workflow was added so this test does not require applying
+the broader Container Apps foundation. APIM, Log Analytics and other Azure
+resources remain billable until the normal Terraform teardown is run. The next
+safe step is to record the result, then tear down paid resources or explicitly
+approve the next MCP/agent backend milestone.
+
 # Deployment checkpoint: 2026-09-28
 
 The user requested provisioning through GitHub Actions. The [plan run](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/36504225341) succeeded at commit `ac64c66`. That initial run was plan-only; see the current deployment status below.
