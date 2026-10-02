@@ -53,3 +53,6 @@ APIM's API and model gateway roles may share one deployment. Arrows show logical
 - Content safety, authorization, distributed tracing, and evaluation integration for custom AKS workloads.
 
 Multi-cloud networking and self-hosted GPU inference are later extensions. The initial path should work entirely in Azure.
+# Validated phase-one architecture
+
+- [Copilot Studio to private Azure connectivity](private-connectivity-validation.md)
