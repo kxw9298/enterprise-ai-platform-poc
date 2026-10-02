@@ -8,3 +8,4 @@
 - [Terraform POC pipeline](terraform-pipeline.md): plan, apply, scoped access, and eventual destroy of the platform foundation.
 
 Add procedures for tenant/subscription setup, deployment, access verification, troubleshooting, cost review, and teardown as each milestone is implemented. Include prerequisites, commands, expected results, and recovery steps.
+- [Copilot Studio private connectivity probe](copilot-connectivity-probe.md)

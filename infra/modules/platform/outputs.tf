@@ -3,6 +3,8 @@ output "connection_details" {
     gateway_url         = azurerm_api_management.poc.gateway_url
     gateway_private_ips = azurerm_api_management.poc.private_ip_addresses
     apim_network_mode   = azurerm_api_management.poc.virtual_network_type
+    connectivity_path   = "/connectivity/"
+    connectivity_url    = "${azurerm_api_management.poc.gateway_url}/connectivity/"
     mcp_path            = "/mcp/"
     mcp_backend_url     = var.mcp_backend_url
     mcp_backend_ready   = var.mcp_backend_ready

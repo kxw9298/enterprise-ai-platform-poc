@@ -81,3 +81,38 @@ resource "azurerm_api_management_api_policy" "mcp" {
     backend_ready = var.mcp_backend_ready
   })
 }
+
+# Minimal private-network probe. It has no backend so it isolates Power Platform
+# private connectivity from container, AKS, registry and model provisioning.
+resource "azurerm_api_management_api" "connectivity" {
+  name                  = "connectivity"
+  api_management_name   = azurerm_api_management.poc.name
+  resource_group_name   = var.resource_group_name
+  revision              = "1"
+  display_name          = "Private Connectivity Probe"
+  path                  = "connectivity"
+  protocols             = ["https"]
+  subscription_required = true
+}
+
+resource "azurerm_api_management_api_operation" "connectivity" {
+  operation_id        = "get-connectivity"
+  api_name            = azurerm_api_management_api.connectivity.name
+  api_management_name = azurerm_api_management.poc.name
+  resource_group_name = var.resource_group_name
+  display_name        = "Get connectivity status"
+  method              = "GET"
+  url_template        = "/"
+  response {
+    status_code = 200
+    description = "Private connectivity probe response"
+    representation { content_type = "application/json" }
+  }
+}
+
+resource "azurerm_api_management_api_policy" "connectivity" {
+  api_name            = azurerm_api_management_api.connectivity.name
+  api_management_name = azurerm_api_management.poc.name
+  resource_group_name = var.resource_group_name
+  xml_content         = file("${path.module}/policies/connectivity.xml")
+}
