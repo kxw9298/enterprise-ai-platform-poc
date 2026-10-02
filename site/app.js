@@ -6,7 +6,14 @@ const pages = {
     body: `
       <div class="callout"><strong>Validated result</strong><br>Copilot Studio tool <code>Check-private-connectivity</code> returned <code>{"network":"private","source":"internal-apim","status":"ok"}</code>.</div>
       <h2>Architecture</h2>
-      <div class="diagram"><div class="flow"><span>Copilot Studio agent</span><b class="arrow">→</b><span>Power Platform managed connector runtime</span><b class="arrow">→</b><span>Delegated subnet</span><b class="arrow">→</b><span>VNet peering + private DNS</span><b class="arrow">→</b><span>Internal APIM<br><code>10.42.4.4</code></span></div></div>
+      <div class="topology" role="img" aria-label="Network topology showing Copilot Studio through Power Platform VNet injection to an Azure virtual network, private DNS and internal API Management">
+        <div class="topology-client resource-card"><div class="resource-icon copilot">✦</div><div><strong>Copilot Studio</strong><small>Agent + connector tool</small></div></div>
+        <div class="topology-arrow"><span>HTTPS</span><b>→</b></div>
+        <div class="cloud-boundary"><div class="boundary-label">Microsoft Power Platform</div><div class="resource-card injected"><div class="resource-icon power">⇄</div><div><strong>VNet-injected runtime</strong><small>Managed connector containers</small></div></div><div class="subnet-chip">Delegated subnet · private route</div></div>
+        <div class="topology-arrow"><span>VNet peering</span><b>→</b></div>
+        <div class="azure-boundary"><div class="boundary-label azure-label">Azure VNet · East US</div><div class="azure-grid"><div class="resource-card dns"><div class="resource-icon dns-icon">⌁</div><div><strong>Private DNS</strong><small>APIM hostname → 10.42.4.4</small></div></div><div class="resource-card apim"><div class="resource-icon apim-icon">◇</div><div><strong>Internal APIM</strong><small>Developer tier · private IP</small></div></div></div><div class="subnet-chip">Private endpoint subnet · 10.42.4.0/24</div></div>
+      </div>
+      <div class="legend"><span><i class="legend-dot blue"></i>Managed service path</span><span><i class="legend-dot purple"></i>Private network boundary</span><span><i class="legend-dot green"></i>Validated response</span></div>
       <p>Power Platform injects Microsoft-managed runtime containers into the delegated subnet. Azure owns the network, DNS and APIM gateway; no customer-managed connector container is created in Azure.</p>
       <h2>Azure configuration</h2>
       <table><thead><tr><th>Resource</th><th>Purpose</th><th>Result</th></tr></thead><tbody>

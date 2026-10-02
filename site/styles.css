@@ -24,9 +24,18 @@ code { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:.9e
 table { width:100%; border-collapse:collapse; margin:20px 0; }
 th, td { text-align:left; border-bottom:1px solid var(--line); padding:10px 8px; vertical-align:top; }
 th { color:var(--muted); font-size:13px; }
-.diagram { border:1px solid var(--line); border-radius:10px; padding:20px; background:#fbfcfd; text-align:center; color:#405567; }
-.flow { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:8px; }
-.flow span { border:1px solid #bdd2e2; background:#fff; border-radius:7px; padding:10px 13px; }
-.arrow { color:var(--blue); font-size:20px; }
+.topology { border:1px solid #d7e2ed; border-radius:16px; padding:28px 22px 22px; background:linear-gradient(135deg,#f8fbff,#f5f8fc); display:flex; align-items:center; justify-content:center; gap:13px; box-shadow:0 10px 30px rgba(30,74,111,.08); }
+.resource-card { display:flex; align-items:center; gap:10px; min-width:164px; padding:12px; border:1px solid #cbd9e6; border-radius:10px; background:#fff; box-shadow:0 3px 10px rgba(30,60,90,.06); text-align:left; }
+.resource-card strong { display:block; font-size:13px; line-height:1.25; }
+.resource-card small { display:block; color:var(--muted); font-size:11px; line-height:1.35; margin-top:3px; }
+.resource-icon { width:34px; height:34px; display:grid; place-items:center; border-radius:8px; color:#fff; font-size:21px; font-weight:700; flex:0 0 34px; }
+.copilot { background:#0078d4; }.power { background:#742774; }.dns-icon { background:#1683a8; }.apim-icon { background:#0078d4; }
+.cloud-boundary,.azure-boundary { position:relative; border:1px dashed #bba9d2; border-radius:13px; padding:25px 12px 12px; min-width:205px; background:rgba(255,255,255,.55); }
+.azure-boundary { border-color:#9fc5df; min-width:280px; background:rgba(240,248,255,.62); }
+.boundary-label { position:absolute; top:7px; left:12px; color:#633b79; font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }.azure-label { color:#1769aa; }
+.subnet-chip { margin-top:9px; text-align:center; color:#617486; font-size:10px; }
+.azure-grid { display:grid; grid-template-columns:1fr; gap:8px; }.topology-arrow { color:var(--blue); text-align:center; font-size:25px; white-space:nowrap; }.topology-arrow span { display:block; color:#718292; font-size:10px; font-weight:700; letter-spacing:.04em; }.topology-arrow b { font-weight:400; }
+.legend { display:flex; justify-content:center; gap:18px; color:#6b7b89; font-size:11px; margin-top:12px; flex-wrap:wrap; }.legend-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; }.legend-dot.blue{background:#0078d4}.legend-dot.purple{background:#742774}.legend-dot.green{background:#19734a}
 a { color:var(--blue); }
+@media (max-width:900px) { .topology { flex-direction:column; align-items:stretch; }.topology-arrow { transform:rotate(90deg); margin:-2px 0; }.cloud-boundary,.azure-boundary { min-width:0; }.resource-card { min-width:0; } }
 @media (max-width:760px) { .topbar { padding:0 16px; } .status { display:none; } .layout { display:block; } .sidebar { min-height:auto; border-right:0; border-bottom:1px solid var(--line); padding:16px; } .sidebar nav { display:flex; flex-wrap:wrap; gap:4px; } .content { padding:34px 20px 60px; } h1 { font-size:30px; } }
