@@ -5,7 +5,8 @@ const pages = {
     lead: 'A practical proof of concept for calling an internal Azure API Management gateway from a Copilot Studio agent through Power Platform VNet support.',
     body: `
       <div class="callout"><strong>Validated result</strong><br>Copilot Studio tool <code>Check-private-connectivity</code> returned <code>{"network":"private","source":"internal-apim","status":"ok"}</code>.</div>
-      <h2>Architecture</h2>
+      <h2>Azure landing zone topology</h2>
+      <p class="diagram-caption">The diagram uses an Azure architecture view: platform boundary on the left, Azure landing zone on the right, and separate data-plane and DNS flows.</p>
       <div class="architect-diagram" role="img" aria-label="Architectural topology showing Copilot Studio, Power Platform VNet injection, private DNS and internal APIM in an Azure VNet">
         <svg viewBox="0 0 980 430" xmlns="http://www.w3.org/2000/svg" aria-labelledby="diagram-title diagram-desc">
           <title id="diagram-title">Copilot Studio to internal Azure APIM topology</title><desc id="diagram-desc">A private HTTPS request crosses Power Platform VNet injection and peering into an Azure virtual network. Private DNS resolves the APIM hostname to a private address.</desc>
