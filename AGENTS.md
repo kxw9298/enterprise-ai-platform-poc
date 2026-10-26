@@ -2,6 +2,20 @@
 
 ## Current milestone: AI platform (2026-10-25)
 
+Live validation update: apply 40254387175 completed successfully. VM Run Command
+works without adding NAT. From VM, APIM DNS resolves to 10.42.4.4 and the private
+connectivity endpoint returns HTTP 200. Model tests return 401 for both valid
+clients: APIM reports invalid subscription key. Both subscriptions are active
+but scope is revision-qualified `/apis/model;rev=1`. Token audience, v2 token
+version and azp match the configured API and identities. Correction `5cfd80e`
+scopes subscriptions to logical `/apis/model` via split on `;rev=`. This is code
+only; scope correction has NOT been applied. Fresh ai-access-plan running/logged
+in `.local/ai-scope-fix-plan.log`; check before starting another state operation.
+api_id changes force subscription replacement, which the existing plan guard
+requires explicitly reviewing. Do not weaken the generic replacement guard.
+Private networking passed; model calls, cross-key authorization, throttling,
+safety, cost accounting and rotation remain unverified. Paid resources remain up.
+
 Private access/provisioning checkpoint (2026-10-25 America/New_York): explicit
 `ai-access-plan` enables Bastion Basic and private Standard_D2s_v7 VM with both
 model test identities, no NAT. Added workflow `enable_admin_access` input.
