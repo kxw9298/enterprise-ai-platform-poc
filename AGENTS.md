@@ -2,6 +2,20 @@
 
 ## Current milestone: AI platform (2026-10-25)
 
+LATEST validation checkpoint (supersedes the historical blockers below): client
+request-limit isolation PASSED at temporary 1 RPM: A 200, A 429, B 200. Temporary
+daily quota 1 yielded subsequent 403s; normal 10 RPM/10,000 daily quota restored
+through guarded Terraform applies. Primary key regenerated: after propagation
+old key 401/new key 200, same subscription ID. Secondary continued to authenticate
+(initially 200, later backend 429). Synthetic self-harm test blocked with 400
+`content_filter`; earlier weapons-themed prompt returned 200, not a proven block.
+Official Azure Retail API price snapshot verified 2026-10-25 (East US,
+GlobalStandard): $0.40 input/$0.10 cached/$1.60 output per million tokens. Dated
+KQL executed live, missing/unpriced usage 0. Snapshot and public AI docs prepared.
+Teardown is authorized after testing; down-plan is running under
+`.local/ai-final-down-plan.log`. Check its status before another state operation.
+Do not claim teardown complete until apply and live inventory verify it.
+
 Approved subscription repair completed: local saved-plan apply **2 add, 1 change,
 2 destroy**. Exact repair guard plus 4 regression tests committed in `099e96e`;
 generic replacement guard unchanged. Both subscriptions now active on logical

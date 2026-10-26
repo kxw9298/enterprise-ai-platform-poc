@@ -46,10 +46,46 @@ const pages = {
   }
 };
 
+pages.ai = {
+  title: 'Private AI model gateway on Azure',
+  kicker: 'AI platform · Validated 25 October 2026',
+  lead: 'Internal API Management fronts a Foundry GPT-4.1-mini deployment, with Entra authentication and separate API subscriptions for client controls and token attribution.',
+  body: `<div class="callout"><strong>Verified live</strong><br>Both test clients call the model privately. A client over its APIM request limit gets 429 while the other client continues to receive 200.</div>
+    <h2>Request and identity flow</h2>
+    <pre>Private test VM + client managed identity
+  → internal APIM (10.42.4.4)
+  → validate Entra token + API subscription key
+  → enforce client/subscription binding and limits
+  → APIM managed identity → Foundry → model response
+  → token traces → Application Insights / Log Analytics</pre>
+    <p>Foundry uses a subnet-restricted service endpoint; it is not a Foundry private endpoint. No Container Apps, ACR or AKS runtime is enabled. Bastion Basic and the private VM provide temporary test access.</p>
+    <h2>Verified security and controls</h2>
+    <table><thead><tr><th>Test</th><th>Observed result</th></tr></thead><tbody>
+    <tr><td>Client A / B, matching identity and key</td><td>200 / 200</td></tr>
+    <tr><td>Missing or invalid key; missing token</td><td>401</td></tr>
+    <tr><td>Client A identity + client B key</td><td>403</td></tr>
+    <tr><td>Streaming request</td><td>400</td></tr>
+    <tr><td>Isolation at temporary 1 request/minute</td><td>A first: 200; A second: 429; B: 200</td></tr>
+    <tr><td>Temporary 1-token daily quota</td><td>Subsequent calls: 403</td></tr>
+    <tr><td>Primary and secondary key attribution</td><td>Same subscription ID</td></tr>
+    <tr><td>Primary-key regeneration after propagation</td><td>Old key: 401; new key: 200</td></tr>
+    <tr><td>Synthetic blocked-content test</td><td>400, content_filter</td></tr>
+    <tr><td>Spoofed attribution headers</td><td>Overridden with validated IDs</td></tr>
+    </tbody></table>
+    <p>With prompt estimation disabled, the token policy can admit a request before its usage is known; it rejects subsequent requests once the quota is reached. It is not an exact spending cap. Initial burst tests also hit shared Foundry capacity; lowering the APIM test limit made client isolation independently observable.</p>
+    <h2>Usage and estimated cost</h2>
+    <p>One APIM subscription represents each reporting client. Its primary and secondary keys share counters and attribution. Raw keys are removed before forwarding and are not logged as telemetry dimensions.</p>
+    <table><thead><tr><th>GlobalStandard retail USD / million tokens</th><th>Rate</th></tr></thead><tbody><tr><td>Input</td><td>$0.40</td></tr><tr><td>Cached input</td><td>$0.10</td></tr><tr><td>Output</td><td>$1.60</td></tr></tbody></table>
+    <p>Rates verified against the Azure Retail Prices API on 25 October 2026. The snapshot records source meter IDs and effective dates. The query only prices the matching model/version and observed day; other usage stays unpriced. Estimates exclude infrastructure, taxes and negotiated discounts.</p>
+    <h2>Reproducible configuration</h2><ol><li>Review the explicit AI Terraform profile, with Foundry enabled and container runtimes disabled.</li><li>Enable temporary admin access for the private VM and Bastion test path.</li><li>Review a fresh plan and matching workflow commit before apply.</li><li>Obtain keys securely. Test both clients, mismatched keys, limits and usage from the private VM.</li><li>Run a reviewed down-plan/down to remove paid workloads while retaining the network foundation.</li></ol>
+    <p>The subscription scope must reference the logical <code>/apis/model</code> API. Revision-qualified <code>/apis/model;rev=1</code> scope caused valid keys to be rejected in the first deployment and was corrected.</p>
+    <p><a href="https://github.com/kxw9298/enterprise-ai-platform-poc/blob/main/docs/runbooks/ai-platform-validation.md">Detailed validation record and remaining checks</a> · <a href="https://github.com/kxw9298/enterprise-ai-platform-poc/blob/main/docs/runbooks/ai-platform.md">Deployment runbook</a> · <a href="https://github.com/kxw9298/enterprise-ai-platform-poc/blob/main/pricing/gpt-4.1-mini-global-2026-10-25.json">Dated price snapshot</a></p>`
+};
+
 function render() {
-  const key = location.hash.includes('connectivity') ? 'connectivity' : 'connectivity';
+  const key = location.hash.includes('ai-platform') ? 'ai' : 'connectivity';
   const page = pages[key];
-  document.querySelector('#nav').innerHTML = `<a class="active" href="#/doc/copilot-studio-private-connectivity">Private connectivity</a><a href="https://github.com/kxw9298/enterprise-ai-platform-poc/tree/main/docs">Repository docs</a>`;
+  document.querySelector('#nav').innerHTML = `<a class="${key === 'connectivity' ? 'active' : ''}" href="#/doc/copilot-studio-private-connectivity">Private connectivity</a><a class="${key === 'ai' ? 'active' : ''}" href="#/doc/ai-platform">AI model gateway</a><a href="https://github.com/kxw9298/enterprise-ai-platform-poc/tree/main/docs">Repository docs</a>`;
   document.querySelector('#content').innerHTML = `<div class="kicker">${page.kicker}</div><h1>${page.title}</h1><p class="lead">${page.lead}</p>${page.body}`;
   document.title = page.title;
 }

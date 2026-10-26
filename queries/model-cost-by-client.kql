@@ -1,11 +1,14 @@
-// Log Analytics workspace schema (AppTraces). Set dated prices for your deployed model.
-// Defaults intentionally null: absent prices produce null cost, never false $0.
+// Log Analytics workspace schema (AppTraces). Dated retail estimate, not invoice.
+// Snapshot: pricing/gpt-4.1-mini-global-2026-10-25.json, USD per million tokens.
+// Outside the observed local-day window or model/version, cost stays null.
 // The APIM trace stores its dimensions as a JSON blob in the Properties column.
 // The Application Insights portal Logs blade instead presents this same data as
 // `traces`/`customDimensions`; use that form there, not this one.
-let InputUSDPerMillion = real(null);
-let CachedInputUSDPerMillion = real(null);
-let OutputUSDPerMillion = real(null);
+let InputUSDPerMillion = 0.40;
+let CachedInputUSDPerMillion = 0.10;
+let OutputUSDPerMillion = 1.60;
+let PriceWindowStart = datetime(2026-10-25T04:00:00Z);
+let PriceWindowEnd = datetime(2026-10-26T04:00:00Z);
 AppTraces
 | where TimeGenerated > ago(24h) and Message == "Model usage"
 | extend P = parse_json(Properties)
@@ -18,10 +21,13 @@ AppTraces
 | extend InputTokens=tolong(Usage.prompt_tokens), OutputTokens=tolong(Usage.completion_tokens),
          CachedTokens=coalesce(tolong(Usage.prompt_tokens_details.cached_tokens), 0)
 | extend MissingUsage=isnull(InputTokens) or isnull(OutputTokens)
+| extend PriceApplies=Model == "gpt-4.1-mini" and ModelVersion startswith "2025-04-14"
+    and TimeGenerated >= PriceWindowStart and TimeGenerated < PriceWindowEnd
 | summarize Requests=count(), MissingUsageRequests=countif(MissingUsage),
+            UnpricedRequests=countif(not(PriceApplies)),
             InputTokens=sum(InputTokens), CachedInputTokens=sum(CachedTokens), OutputTokens=sum(OutputTokens)
             by SubscriptionId, Deployment, Model, ModelVersion
-| extend EstimatedModelUSD=iff(MissingUsageRequests > 0, real(null),
+| extend EstimatedModelUSD=iff(MissingUsageRequests > 0 or UnpricedRequests > 0, real(null),
     ((InputTokens-CachedInputTokens)*InputUSDPerMillion + CachedInputTokens*CachedInputUSDPerMillion + OutputTokens*OutputUSDPerMillion)/1000000.0)
 // Includes successful non-streaming calls only. Inspect failed gateway requests
 // separately; incomplete telemetry cannot establish a complete invoice.

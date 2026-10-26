@@ -1,5 +1,11 @@
 # AI platform phase: model gateway
 
+Latest live validation: the model gateway has been provisioned and tested. See
+[runtime validation](ai-platform-validation.md) for successful authentication,
+client-limit isolation, quota enforcement, rotation, token attribution and dated
+cost estimates. Earlier preparation-only statements below describe the original
+profile boundary, not the latest deployment status.
+
 Copilot Studio private HTTP connectivity was validated on 2026-10-02. Further
 Copilot, MCP, Container Apps and AKS work is paused while the model gateway is
 prepared. Preserve their code and existing network configuration.

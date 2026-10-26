@@ -1,0 +1,22 @@
+{
+  "model": "gpt-4.1-mini",
+  "model_version": "2025-04-14",
+  "deployment_type": "GlobalStandard",
+  "region": "eastus",
+  "currency": "USD",
+  "verified_on": "2026-10-25",
+  "timezone": "America/New_York",
+  "source": "https://prices.azure.com/api/retail/prices?$filter=armRegionName%20eq%20'eastus'%20and%20contains(meterName,'4.1')",
+  "service_name": "Foundry Models",
+  "product_name": "Azure OpenAI",
+  "meter_effective_start": "2025-04-01T00:00:00Z",
+  "retail_unit": "1K",
+  "retail_per_1000_tokens": {"input": 0.0004, "cached_input": 0.0001, "output": 0.0016},
+  "usd_per_million_tokens": {"input": 0.40, "cached_input": 0.10, "output": 1.60},
+  "meter_ids": {
+    "input": "668bbda9-4f08-5014-8f66-98a8b95d512a",
+    "cached_input": "b25748c8-a784-5560-908c-02cbde1c8aab",
+    "output": "d044f3ff-779c-53e7-880d-3fcdc607e499"
+  },
+  "notes": "Public Consumption retail estimate, no negotiated discounts, taxes or infrastructure charges. Reverify rates before extending the KQL pricing window beyond the observed local day. Meter effective date is the API record date, not a guarantee of all intervening historical prices."
+}
