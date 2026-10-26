@@ -6,6 +6,7 @@ Run separately for client-a and client-b using Terraform output client IDs.
 """
 import argparse
 import json
+import os
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -18,6 +19,9 @@ def main():
     parser.add_argument('--resource', required=True, help='api://APPLICATION_ID from the API app registration')
     parser.add_argument('--requests', type=int, default=1, help='Use 12 to exercise the default 10 requests/minute limit')
     args = parser.parse_args()
+    subscription_key = os.environ.get('MODEL_SUBSCRIPTION_KEY', '')
+    if not subscription_key:
+        parser.error('Set MODEL_SUBSCRIPTION_KEY securely in the environment; do not pass keys on the command line')
     if not args.gateway.startswith('https://') or not 1 <= args.requests <= 20:
         parser.error('Use HTTPS and 1–20 requests')
     query = urllib.parse.urlencode({'api-version': '2018-02-01', 'resource': args.resource, 'client_id': args.client_id})
@@ -31,7 +35,8 @@ def main():
     body = json.dumps({'messages': [{'role': 'user', 'content': 'Reply with the word hello.'}], 'max_tokens': 16, 'stream': False}).encode()
     for index in range(args.requests):
         request = urllib.request.Request(args.gateway.rstrip('/') + '/models/chat/completions', data=body,
-                                         headers={'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'})
+                                         headers={'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json',
+                                                  'Ocp-Apim-Subscription-Key': subscription_key})
         try:
             with urllib.request.urlopen(request, timeout=60) as result:
                 payload = json.load(result)

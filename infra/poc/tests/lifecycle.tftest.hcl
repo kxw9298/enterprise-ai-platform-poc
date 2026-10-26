@@ -46,6 +46,10 @@ run "foundry_can_be_enabled" {
   command = plan
   variables { enable_foundry = true }
   assert {
+    condition     = length(module.platform[0].connection_details.model_subscription_ids) == 2
+    error_message = "Foundry must prepare two separately attributed model subscriptions."
+  }
+  assert {
     condition     = module.platform[0].connection_details.foundry_enabled
     error_message = "Foundry must be available without uncommenting resources."
   }

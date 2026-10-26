@@ -26,9 +26,11 @@ plan uses `enable_foundry=true`, `enable_container_apps=false`, and
 
 - Model API still requires Entra tokens from the two managed test identities.
   APIM authenticates to Foundry with its managed identity; local account keys are
-  disabled. Subscription keys are not currently required.
-- Current request/token limits and telemetry use Entra client IDs. API-key
-  attribution is a subsequent increment, not a capability of this profile.
+  disabled. Model calls also require an active API-scoped APIM subscription key.
+- Prepared subscriptions `model-client-a` and `model-client-b` are each bound in
+  policy to the corresponding managed identity. A valid key with the other
+  client's Entra token is rejected. Request/token limits and cost aggregation use
+  the validated subscription ID. Primary/secondary keys share attribution.
 - Foundry uses a public service endpoint restricted to the APIM subnet through
   a Cognitive Services service endpoint and deny-by-default network ACLs. This
   is not a Foundry private endpoint.
@@ -42,10 +44,10 @@ plan uses `enable_foundry=true`, `enable_container_apps=false`, and
 
 ## Next increments and acceptance
 
-1. Add one APIM subscription per reporting client; retain Entra validation and
-   attribute usage to the validated subscription ID, never the raw key. Update
-   subscription resources, rate/token counters, telemetry, KQL and tests together.
-   Decide and test client-to-subscription authorization before deployment.
+1. Review the prepared API subscriptions, Entra-to-subscription bindings and
+   subscription-based counters/telemetry/query before deploying. These changes
+   have not been runtime-tested. Generated keys are sensitive and held in remote
+   Terraform state; never export state, plans or key values to Git or CI logs.
 2. Test clients A/B, missing/invalid credentials, key rotation, spoofed headers,
    request and token limits, blocked content, missing usage and non-streaming
    accounting. Reconcile model usage against backend telemetry.
@@ -54,3 +56,35 @@ plan uses `enable_foundry=true`, `enable_container_apps=false`, and
 4. Review a fresh plan and private test access before requesting provisioning.
    Teardown afterward using the existing down-plan/down runbook. Bootstrap and
    persistent networking survive down; no automatic deployment is authorized here.
+
+## Private test access and key handling
+
+The approved profile keeps Bastion/VMs off. Before apply, select an existing
+authorized VNet host or review a separate plan enabling the retained admin-access
+module. That module attaches the two model test identities to a private VM and
+creates billable Bastion access. Hosted GitHub runners cannot call internal APIM.
+No access resources or extra grants are created by this preparation.
+
+After provisioning, an authorized administrator retrieves each subscription key
+from APIM's Subscriptions blade and transfers it securely to the test host. Read
+it without echo and use the existing script; never put the key in shell history:
+
+```bash
+read -r -s -p 'Model subscription key: ' MODEL_SUBSCRIPTION_KEY
+export MODEL_SUBSCRIPTION_KEY
+python3 scripts/model-gateway/test-endpoint.py \
+  --gateway https://APIM_NAME.azure-api.net \
+  --client-id CLIENT_A_MANAGED_IDENTITY_UUID --resource api://API_APP_UUID
+unset MODEL_SUBSCRIPTION_KEY
+```
+
+Run A with A's key and B with B's key; swapping keys must return 403. Missing or
+invalid keys must fail authentication. Rotate keys in APIM and confirm the same
+subscription ID remains in usage reporting. Use header keys, not query-string
+keys (request URLs may be logged). Model policy removes subscription credentials
+before forwarding. Diagnostics do not collect bodies or subscription headers.
+Cost query excludes legacy rows without a subscription ID; never mix historical
+Entra-only totals with new subscription totals without explicit migration.
+
+References: [APIM subscriptions](https://learn.microsoft.com/en-us/azure/api-management/api-management-howto-create-subscriptions)
+and [Terraform API subscriptions](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/api_management_subscription).

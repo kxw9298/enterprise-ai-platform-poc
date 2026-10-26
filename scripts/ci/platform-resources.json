@@ -77,5 +77,7 @@
   "module.platform[0].module.foundry[0].azurerm_role_assignment.gateway_model": "azurerm_role_assignment",
   "module.platform[0].module.foundry[0].azurerm_user_assigned_identity.test_client[\"client-a\"]": "azurerm_user_assigned_identity",
   "module.platform[0].module.foundry[0].azurerm_user_assigned_identity.test_client[\"client-b\"]": "azurerm_user_assigned_identity",
-  "module.registry[0].azurerm_container_registry.poc": "azurerm_container_registry"
+  "module.registry[0].azurerm_container_registry.poc": "azurerm_container_registry",
+  "module.platform[0].module.foundry[0].azurerm_api_management_subscription.client[\"client-a\"]": "azurerm_api_management_subscription",
+  "module.platform[0].module.foundry[0].azurerm_api_management_subscription.client[\"client-b\"]": "azurerm_api_management_subscription"
 }

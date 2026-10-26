@@ -79,7 +79,7 @@ resource "azurerm_api_management_api" "model" {
   display_name          = "POC model gateway"
   path                  = "models"
   protocols             = ["https"]
-  subscription_required = false
+  subscription_required = true
   service_url           = "https://${azurerm_cognitive_account.foundry.custom_subdomain_name}.openai.azure.com"
 }
 resource "azurerm_api_management_api_operation" "chat" {
@@ -91,18 +91,29 @@ resource "azurerm_api_management_api_operation" "chat" {
   method              = "POST"
   url_template        = "/chat/completions"
 }
+resource "azurerm_api_management_subscription" "client" {
+  for_each            = azurerm_user_assigned_identity.test_client
+  subscription_id     = "model-${each.key}"
+  display_name        = "Model gateway ${each.key}"
+  resource_group_name = var.resource_group_name
+  api_management_name = var.gateway_name
+  api_id              = azurerm_api_management_api.model.id
+  state               = "active"
+  allow_tracing       = false
+}
 resource "azurerm_api_management_api_policy" "model" {
   api_name            = azurerm_api_management_api.model.name
   api_management_name = var.gateway_name
   resource_group_name = var.resource_group_name
   xml_content = templatefile("${path.module}/../platform/policies/model.xml.tftpl", {
-    tenant_id           = var.tenant_id
-    audience            = var.api_audience
-    client_ids          = [for key in sort(keys(azurerm_user_assigned_identity.test_client)) : azurerm_user_assigned_identity.test_client[key].client_id]
-    deployment          = local.model_deployment
-    requests_per_minute = var.requests_per_minute
-    tokens_per_minute   = var.tokens_per_minute
-    daily_token_quota   = var.daily_token_quota
+    tenant_id            = var.tenant_id
+    audience             = var.api_audience
+    client_ids           = [for key in sort(keys(azurerm_user_assigned_identity.test_client)) : azurerm_user_assigned_identity.test_client[key].client_id]
+    subscription_clients = { for key, identity in azurerm_user_assigned_identity.test_client : azurerm_api_management_subscription.client[key].subscription_id => identity.client_id }
+    deployment           = local.model_deployment
+    requests_per_minute  = var.requests_per_minute
+    tokens_per_minute    = var.tokens_per_minute
+    daily_token_quota    = var.daily_token_quota
   })
   depends_on = [azurerm_role_assignment.gateway_model, azurerm_cognitive_deployment.chat]
 }

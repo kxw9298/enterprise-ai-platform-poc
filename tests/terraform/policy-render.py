@@ -17,6 +17,7 @@ base = {
     "requests_per_minute": 10,
     "tokens_per_minute": 1000,
     "daily_token_quota": 10000,
+    "subscription_clients": {"model-client-a": "22222222-2222-2222-2222-222222222222"},
 }
 with tempfile.TemporaryDirectory() as work:
     def render(name, clients, ready=True):
@@ -42,5 +43,12 @@ with tempfile.TemporaryDirectory() as work:
     assert model.find("inbound/authentication-managed-identity") is not None
     assert model.find("inbound/llm-emit-token-metric/dimension").attrib["name"] == "ClientId"
     assert model.find("outbound/choose/when/trace/metadata[@name='usage']") is not None
-    assert model.find("inbound/choose/when/return-response/set-status").attrib["code"] == "400"
+    statuses = [s.attrib['code'] for s in model.findall('inbound/choose/when/return-response/set-status')]
+    assert statuses == ['401', '403', '400']
+    binding = model.findall('inbound/choose/when')[1].attrib['condition']
+    assert 'model-client-a' in binding and trusted[0] in binding
+    assert 'subscriptionId' in model.find('inbound/rate-limit-by-key').attrib['counter-key']
+    assert 'subscriptionId' in model.find('inbound/llm-token-limit').attrib['counter-key']
+    assert model.find("inbound/set-header[@name='Ocp-Apim-Subscription-Key']").attrib['exists-action'] == 'delete'
+    assert model.find("outbound/choose/when/trace/metadata[@name='subscription_id']") is not None
 print("Policy templates render as XML; empty trust denies MCP; model authentication/accounting and streaming boundary verified.")

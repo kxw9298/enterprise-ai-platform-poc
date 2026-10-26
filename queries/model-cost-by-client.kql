@@ -9,10 +9,10 @@ let OutputUSDPerMillion = real(null);
 AppTraces
 | where TimeGenerated > ago(24h) and Message == "Model usage"
 | extend P = parse_json(Properties)
-| extend ClientId=tostring(P.client_id), RequestId=tostring(P.request_id),
+| extend SubscriptionId=tostring(P.subscription_id), ClientId=tostring(P.client_id), RequestId=tostring(P.request_id),
          Deployment=tostring(P.deployment), Model=tostring(P.model),
          ModelVersion=tostring(P.model_version), Usage=parse_json(tostring(P.usage))
-| where isnotempty(RequestId)
+| where isnotempty(RequestId) and isnotempty(SubscriptionId)
 // Deduplicate repeated telemetry, not actual separate model requests.
 | summarize arg_max(TimeGenerated, *) by RequestId
 | extend InputTokens=tolong(Usage.prompt_tokens), OutputTokens=tolong(Usage.completion_tokens),
@@ -20,7 +20,7 @@ AppTraces
 | extend MissingUsage=isnull(InputTokens) or isnull(OutputTokens)
 | summarize Requests=count(), MissingUsageRequests=countif(MissingUsage),
             InputTokens=sum(InputTokens), CachedInputTokens=sum(CachedTokens), OutputTokens=sum(OutputTokens)
-            by ClientId, Deployment, Model, ModelVersion
+            by SubscriptionId, Deployment, Model, ModelVersion
 | extend EstimatedModelUSD=iff(MissingUsageRequests > 0, real(null),
     ((InputTokens-CachedInputTokens)*InputUSDPerMillion + CachedInputTokens*CachedInputUSDPerMillion + OutputTokens*OutputUSDPerMillion)/1000000.0)
 // Includes successful non-streaming calls only. Inspect failed gateway requests

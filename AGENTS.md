@@ -2,6 +2,19 @@
 
 ## Current milestone: AI platform (2026-10-25)
 
+Follow-up preparation: model API now requires an API-scoped subscription key AND
+the matching Entra managed-identity token. Two subscriptions bind client-a/b;
+request/token limits and usage KQL aggregate by validated APIM subscription ID.
+Primary/secondary keys share attribution. Raw keys are removed before backend
+forwarding and never output. Terraform state contains generated keys and must
+remain protected. No deployment or key generation has occurred. See the AI
+platform runbook for private test access, key handling and remaining live tests.
+This supersedes the older deferred API-key implementation instruction below.
+Validation for this increment: schema validation, 9 mocked lifecycle tests,
+real-template XML/binding checks and plan-guard regression checks passed.
+Azure-backed refreshed plan: **33 add, 0 change, 0 destroy**, scope guard passed.
+Runtime key validation, rotation, 429/403 enforcement and telemetry remain untested.
+
 User paused further Copilot Studio work and authorized review/code preparation
 and a Terraform plan for the Foundry/internal-APIM model gateway. This supersedes
 older phase-one next actions below. See `docs/runbooks/ai-platform.md` and explicit

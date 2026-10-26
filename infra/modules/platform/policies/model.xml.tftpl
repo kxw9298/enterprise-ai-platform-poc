@@ -10,16 +10,35 @@
       <audiences><audience>${audience}</audience></audiences>
     </validate-azure-ad-token>
     <set-variable name="clientId" value='@(((Jwt)context.Variables["caller"]).Claims.GetValueOrDefault("azp", ((Jwt)context.Variables["caller"]).Claims.GetValueOrDefault("appid", "unknown")))' />
+    <choose>
+      <when condition='@(context.Subscription == null)'>
+        <return-response><set-status code="401" reason="Model subscription required" /></return-response>
+      </when>
+    </choose>
+    <set-variable name="subscriptionId" value="@(context.Subscription.Id)" />
+    <choose>
+      <when condition='@(!(
+%{ for subscription_id, client_id in subscription_clients ~}
+        ((string)context.Variables["subscriptionId"] == "${subscription_id}" &amp;&amp; (string)context.Variables["clientId"] == "${client_id}") ||
+%{ endfor ~}
+        false))'>
+        <return-response><set-status code="403" reason="Caller does not own this model subscription" /></return-response>
+      </when>
+    </choose>
+    <set-header name="Ocp-Apim-Subscription-Key" exists-action="delete" />
+    <set-query-parameter name="subscription-key" exists-action="delete" />
+    <set-header name="x-subscription-id" exists-action="override"><value>@((string)context.Variables["subscriptionId"])</value></set-header>
     <set-header name="x-client-id" exists-action="override"><value>@((string)context.Variables["clientId"])</value></set-header>
     <choose>
       <when condition='@(context.Request.Body.As&lt;JObject&gt;(preserveContent: true).Value&lt;bool?&gt;("stream") == true)'>
         <return-response><set-status code="400" reason="Initial accounting test requires non-streaming requests" /></return-response>
       </when>
     </choose>
-    <rate-limit-by-key calls="${requests_per_minute}" renewal-period="60" counter-key='@("model-requests:" + (string)context.Variables["clientId"])' />
-    <llm-token-limit counter-key='@("model-tokens:" + (string)context.Variables["clientId"])' tokens-per-minute="${tokens_per_minute}" token-quota="${daily_token_quota}" token-quota-period="Daily" estimate-prompt-tokens="false" />
+    <rate-limit-by-key calls="${requests_per_minute}" renewal-period="60" counter-key='@("model-requests:" + (string)context.Variables["subscriptionId"])' />
+    <llm-token-limit counter-key='@("model-tokens:" + (string)context.Variables["subscriptionId"])' tokens-per-minute="${tokens_per_minute}" token-quota="${daily_token_quota}" token-quota-period="Daily" estimate-prompt-tokens="false" />
     <llm-emit-token-metric namespace="POC.ModelUsage">
       <dimension name="ClientId" value='@((string)context.Variables["clientId"])' />
+      <dimension name="SubscriptionId" value='@((string)context.Variables["subscriptionId"])' />
       <dimension name="Deployment" value="${deployment}" />
     </llm-emit-token-metric>
     <rewrite-uri template="/openai/deployments/${deployment}/chat/completions" copy-unmatched-params="false" />
@@ -35,6 +54,7 @@
         <trace source="poc-model-usage" severity="information">
           <message>Model usage</message>
           <metadata name="client_id" value='@((string)context.Variables["clientId"])' />
+          <metadata name="subscription_id" value='@((string)context.Variables["subscriptionId"])' />
           <metadata name="request_id" value="@(context.RequestId.ToString())" />
           <metadata name="deployment" value="${deployment}" />
           <metadata name="model" value="gpt-4.1-mini" />
