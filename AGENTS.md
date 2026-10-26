@@ -2,6 +2,20 @@
 
 ## Current milestone: AI platform (2026-10-25)
 
+Private access/provisioning checkpoint (2026-10-25 America/New_York): explicit
+`ai-access-plan` enables Bastion Basic and private Standard_D2s_v7 VM with both
+model test identities, no NAT. Added workflow `enable_admin_access` input.
+Local and GitHub plan at `596211cbb389d0321f27d79d939404febbe94099` passed:
+**41 add, 0 change, 0 destroy**. OIDC preflight 40254246198 passed; plan
+40254288128 passed. Regional cores/StandardDsv7Family available 4/4, used 0;
+Standard_D2s_v7 no SKU restrictions; GlobalStandard gpt4.1-mini quota 5000 used 0.
+User authorized continuing; apply **40254387175 dispatched**, not yet confirmed
+complete. Inputs Foundry/admin=true, Container Apps/AKS=false. Check that run
+before ANY competing state operation; do not report resources live or tests passed
+until verified. APIM/Bastion/VM incur charges as they provision. Next: inspect
+apply result, resolve any actual failure, then run private model tests. Bastion
+Basic uses browser SSH; no NAT/internet download path on VM. Keys remain secret.
+
 Follow-up preparation: model API now requires an API-scoped subscription key AND
 the matching Entra managed-identity token. Two subscriptions bind client-a/b;
 request/token limits and usage KQL aggregate by validated APIM subscription ID.
