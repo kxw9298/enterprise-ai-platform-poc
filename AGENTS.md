@@ -1,5 +1,23 @@
 # Agent instructions and handoff
 
+## Current milestone: AI platform (2026-10-25)
+
+User paused further Copilot Studio work and authorized review/code preparation
+and a Terraform plan for the Foundry/internal-APIM model gateway. This supersedes
+older phase-one next actions below. See `docs/runbooks/ai-platform.md` and explicit
+profile `infra/profiles/ai-platform.tfvars`; local `plan.sh ai-plan` disables
+Container Apps/ACR, AKS, Bastion and VM compute while enabling Foundry.
+
+Read-only Azure inventory: retained four VNets, APIM NSG, enterprise policy and
+orphan Smart Detection action group; no APIM/Foundry/container workloads in the
+workload RG. Azure-backed plan succeeded: **31 add, 0 change, 0 destroy**; scope
+guard passed. No apply, permission changes or environment association performed.
+The current model policy still uses Entra client identity, not APIM subscription
+attribution. The new runbook records the coordinated API-key reporting increment
+and required private test access before deployment. Foundry backend uses service
+endpoint ACLs, not a private endpoint. Historical runtime successes are not a
+fresh deployment test. Saved plan/logs remain ignored in `.local`.
+
 This file is the entry point for any coding agent continuing this POC, including after a rate limit or session reset. Read it before changing infrastructure. It is a handoff, not authorization to deploy or destroy resources. The user's latest instructions take precedence.
 
 ## Goal and working preferences

@@ -7,9 +7,10 @@ TF=${TERRAFORM_BIN:-$ROOT/.local/tools/terraform/1.16.4/terraform}
 operation=${1:-plan}
 case "$operation" in
   plan) flags=(-var=enable_platform=true);;
+  ai-plan) flags=(-var-file="$ROOT/infra/profiles/ai-platform.tfvars");;
   down-plan) flags=(-var=enable_platform=false);;
   destroy-plan) flags=(-destroy);;
-  *) echo 'Usage: plan.sh [plan|down-plan|destroy-plan]' >&2; exit 1;;
+  *) echo 'Usage: plan.sh [plan|ai-plan|down-plan|destroy-plan]' >&2; exit 1;;
 esac
 : "${TF_VAR_publisher_email:?Set publisher email}"
 if [[ -z "${TF_VAR_jump_ssh_public_key:-}" && -f "$ROOT/.local/ssh/poc-jump.pub" ]]; then
@@ -27,4 +28,6 @@ umask 077
 "$TF" -chdir="$ROOT/infra/poc" validate
 "$TF" -chdir="$ROOT/infra/poc" plan -input=false -lock-timeout=5m "${flags[@]}" -out="$ROOT/.local/plans/$operation.tfplan"
 "$TF" -chdir="$ROOT/infra/poc" show -json "$ROOT/.local/plans/$operation.tfplan" > "$ROOT/.local/plans/$operation.tfplan.json"
-bash "$ROOT/scripts/ci/check-foundation-plan.sh" "$ROOT/.local/plans/$operation.tfplan.json" "$operation"
+guard_operation=$operation
+[[ "$operation" != ai-plan ]] || guard_operation=plan
+bash "$ROOT/scripts/ci/check-foundation-plan.sh" "$ROOT/.local/plans/$operation.tfplan.json" "$guard_operation"
