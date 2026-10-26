@@ -2,6 +2,20 @@
 
 ## Current milestone: AI platform (2026-10-25)
 
+Approved subscription repair completed: local saved-plan apply **2 add, 1 change,
+2 destroy**. Exact repair guard plus 4 regression tests committed in `099e96e`;
+generic replacement guard unchanged. Both subscriptions now active on logical
+`/apis/model`. Retest via private VM: A/B matching tokens+keys 200 (13 input/1
+output token each), missing/invalid key and missing token 401, A token+B key 403,
+streaming 400, A secondary key 200. Burst gets 429, including explicit gateway
+rate-limit messages; B also 429, so isolation remains UNPROVEN. Traces ingested
+after several minutes. Committed KQL verified: A primary+secondary 2 requests/26
+input/2 output tokens, B 1 request/13 input/1 output; missing usage 0 for both.
+Spoofed headers overridden. Dollar costs null until dated prices configured.
+Dependencies confirmed 10 backend 429s; exceptions confirmed 3 APIM rate-limit
+rejections. Token-quota, blocked-safety and key-regeneration tests remain pending.
+See `docs/runbooks/ai-platform-validation.md`. Paid workloads remain running.
+
 Live validation update: apply 40254387175 completed successfully. VM Run Command
 works without adding NAT. From VM, APIM DNS resolves to 10.42.4.4 and the private
 connectivity endpoint returns HTTP 200. Model tests return 401 for both valid
