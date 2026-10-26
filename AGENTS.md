@@ -2,13 +2,16 @@
 
 ## Current milestone: AI platform (2026-10-25)
 
-TEARDOWN IN PROGRESS after all requested live checks. Reviewed down-plan passed:
-0 add, 0 change, 41 destroy; module.network and workload group retained. Local
-apply is active under `.local/ai-final-down-apply.log`; do not start another
-Terraform operation while active. Latest live inventory: Foundry, VM/disk,
-identities and telemetry gone; APIM/Bastion/public IP/private DNS still deleting.
-Bootstrap state foundation untouched. Public AI docs deployed successfully in
-Pages run 40260778223 at `62213a3`: `#/doc/ai-platform`.
+TEARDOWN COMPLETE after all requested live checks. Reviewed down-plan passed:
+0 add, 0 change, 41 destroy. Local saved-plan apply completed **41 destroyed**;
+APIM deletion/purge completed after 14m45s without a role change. No Terraform
+operation remains active. Live inventory: only four VNets, APIM NSG, enterprise
+policy and the pre-existing Smart Detection action group in the workload group.
+Foundry, VM/disk, identities, telemetry, APIM/Bastion/public IP/private DNS removed.
+module.network, workload group and bootstrap state storage retained. Small state
+storage charges can remain. Public AI page: `#/doc/ai-platform`; validation and
+dated-price docs committed. Do not mistake historical deployed checkpoints below
+for current live state. Recreate resources and reverify dated prices before tests.
 
 LATEST validation checkpoint (supersedes the historical blockers below): client
 request-limit isolation PASSED at temporary 1 RPM: A 200, A 429, B 200. Temporary

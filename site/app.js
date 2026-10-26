@@ -50,7 +50,7 @@ pages.ai = {
   title: 'Private AI model gateway on Azure',
   kicker: 'AI platform · Validated 25 October 2026',
   lead: 'Internal API Management fronts a Foundry GPT-4.1-mini deployment, with Entra authentication and separate API subscriptions for client controls and token attribution.',
-  body: `<div class="callout"><strong>Verified live</strong><br>Both test clients call the model privately. A client over its APIM request limit gets 429 while the other client continues to receive 200.</div>
+  body: `<div class="callout"><strong>Validated, then torn down</strong><br>Both test clients called the model privately. A client over its APIM request limit received 429 while the other received 200. After testing, Terraform successfully removed all 41 workload resources; persistent networking and bootstrap state storage remain.</div>
     <h2>Request and identity flow</h2>
     <pre>Private test VM + client managed identity
   → internal APIM (10.42.4.4)

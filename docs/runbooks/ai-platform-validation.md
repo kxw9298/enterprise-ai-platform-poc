@@ -4,8 +4,16 @@
 
 GitHub apply [40254387175](https://github.com/kxw9298/enterprise-ai-platform-poc/actions/runs/40254387175)
 succeeded. Foundry, internal APIM, telemetry, Bastion Basic and the private test VM
-are deployed. Container Apps/ACR and AKS remain disabled. Paid resources remain
-running; successful tests do not tear them down automatically.
+were deployed for testing. Container Apps/ACR and AKS remained disabled.
+
+After the tests, an authorized down-plan passed with 0 additions, 0 changes and
+41 deletions. Local saved-plan apply completed successfully: **41 destroyed**.
+Live inventory verified APIM, Foundry, Bastion/public IP, VM/disk, test identities,
+private gateway DNS, Log Analytics and Application Insights are removed.
+Retained: four VNets, APIM NSG, Power Platform enterprise policy, workload resource
+group and the pre-existing Smart Detection action group. Bootstrap state storage
+is retained and can still have small storage charges. This was down, not full
+destroy; the Power Platform environment and its Azure network policy stay intact.
 
 Initial model calls failed with 401 because the API-scoped subscriptions used
 `/apis/model;rev=1`, the revision-qualified Terraform API resource ID. Correction
