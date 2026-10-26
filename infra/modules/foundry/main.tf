@@ -97,7 +97,8 @@ resource "azurerm_api_management_subscription" "client" {
   display_name        = "Model gateway ${each.key}"
   resource_group_name = var.resource_group_name
   api_management_name = var.gateway_name
-  api_id              = azurerm_api_management_api.model.id
+  # Subscription scope is the logical API, not its revision-qualified ARM ID.
+  api_id              = split(";rev=", azurerm_api_management_api.model.id)[0]
   state               = "active"
   allow_tracing       = false
 }
