@@ -2,6 +2,14 @@
 
 ## Current milestone: AI platform (2026-10-25)
 
+TEARDOWN IN PROGRESS after all requested live checks. Reviewed down-plan passed:
+0 add, 0 change, 41 destroy; module.network and workload group retained. Local
+apply is active under `.local/ai-final-down-apply.log`; do not start another
+Terraform operation while active. Latest live inventory: Foundry, VM/disk,
+identities and telemetry gone; APIM/Bastion/public IP/private DNS still deleting.
+Bootstrap state foundation untouched. Public AI docs deployed successfully in
+Pages run 40260778223 at `62213a3`: `#/doc/ai-platform`.
+
 LATEST validation checkpoint (supersedes the historical blockers below): client
 request-limit isolation PASSED at temporary 1 RPM: A 200, A 429, B 200. Temporary
 daily quota 1 yielded subsequent 403s; normal 10 RPM/10,000 daily quota restored
