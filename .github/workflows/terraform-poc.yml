@@ -33,6 +33,10 @@ on:
         description: Enable optional Foundry model resources
         type: boolean
         default: false
+      enable_admin_access:
+        description: Enable billable Bastion Basic and private model-test VM
+        type: boolean
+        default: false
       confirm_destroy:
         description: For down/destroy, type rg-ai-platform-poc
         type: string
@@ -72,6 +76,7 @@ jobs:
       TF_VAR_enable_container_apps: ${{ inputs.enable_container_apps }}
       TF_VAR_mcp_image_digest: ${{ inputs.mcp_image_digest || '' }}
       TF_VAR_enable_foundry: ${{ inputs.enable_foundry }}
+      TF_VAR_enable_admin_access: ${{ inputs.enable_admin_access }}
       POWER_PLATFORM_DETACHED: ${{ inputs.power_platform_detached }}
       TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       TF_STATE_STORAGE_ACCOUNT: ${{ vars.TF_STATE_STORAGE_ACCOUNT }}

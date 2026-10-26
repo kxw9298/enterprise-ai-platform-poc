@@ -65,6 +65,14 @@ module. That module attaches the two model test identities to a private VM and
 creates billable Bastion access. Hosted GitHub runners cannot call internal APIM.
 No access resources or extra grants are created by this preparation.
 
+For the explicit temporary access plan, run `bash scripts/infra/plan.sh ai-access-plan`.
+This enables Bastion Basic plus a two-vCPU private VM and attaches both model
+test identities, without NAT or public VM IP. Bastion, its public IP and the VM
+remain billable while provisioned; VM deallocation does not stop Bastion billing.
+GitHub plan/apply inputs: `enable_admin_access=true`, `enable_foundry=true`,
+`enable_container_apps=false`, `enable_mcp_runtime=false`. Keep those inputs
+identical between reviewed plan and apply.
+
 After provisioning, an authorized administrator retrieves each subscription key
 from APIM's Subscriptions blade and transfers it securely to the test host. Read
 it without echo and use the existing script; never put the key in shell history:
